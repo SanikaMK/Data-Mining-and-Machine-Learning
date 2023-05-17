@@ -1,0 +1,239 @@
+---
+title: "Practice Problem 5"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Question 1:
+
+```{r}
+credit = read.csv("/Users/sanikakalvikatte/Downloads/credit.csv", header = T)
+credit
+```
+
+**Comment:** The data for bank credit is loaded as recommended in the practicum. Here, the data was loaded in the data frame through read.csv() option. Below is the code chucnk for data exploration of credit
+
+```{r}
+str(credit)
+summary(credit)
+```
+
+**Comment:** There are 1000 obervations across 21 variable. The main columns for this data frame would be checking and savings as it is a bank database. Lets check the total cumulative balances in these two fields. 
+
+```{r}
+table(credit$checking_balance)
+table(credit$savings_balance)
+```
+
+**Comment:** It can be marked that the currancy used here is DM i.e., Deutsche Mark. Morever, it looks like there is a minimum balance criteria for savings balance, which is why there is no field for < 0 DM in savings account.
+
+```{r}
+summary(credit$months_loan_duration) 
+summary(credit$amount)
+```
+
+**Comment:** The loan amounts ranged from 250 DM to 18,420 DM across terms of four to 72 months. The median is 2320 DM for about 18 months on an average. 
+
+```{r}
+library(plyr)
+credit$default <- mapvalues(credit$default,
+                           from = c(1,2),
+                           to = c("No", "Yes"))
+table(credit$default)
+```
+
+**Comment:** The field default, gives the idea about how many account holders were able to repay the loan on time, and how many were not able to pay in time, thus marked as defaulters. At total of 30% are in the defaulters list. Banks are discouraged by a high default rate because it means that their investments are unlikely to be fully recouped. Our model will identify applicants at high risk of default, permitting the bank to refuse the credit request before it is approved.
+
+
+ <font size="5.6"> Data Preparation</font> 
+```{r}
+set.seed(123)
+train_sample <- sample(1000, 900)
+str(train_sample)
+
+```
+ 
+**Comment:** Above code chunk states the splitting of data in 90% and 10% for testing and training respectively. The vector train_sample has 900 random integers with seed reproducibility at 123. 
+
+```{r}
+credit_train <- credit[train_sample, ]
+credit_test  <- credit[-train_sample, ]
+```
+
+```{r}
+prop.table(table(credit_train$default))
+prop.table(table(credit_test$default))
+```
+
+*Comment:* As there is about 30% of data in yes for each data set, which is a correct splitting of the data, because it is similar to the 30% of the data in the default field. As we see that both the data sets: training and test have similar distribution, thus, we can built the decision tree based on it. 
+
+<font size="5.6"> Training the Model</font> 
+
+```{r}
+#install.packages("C50")
+library(C50)
+credit_model <- C5.0(credit_train[-17], as.factor(credit_train$default))
+credit_model
+```
+**Comment:** The package C50 allows us to use C5.0() function and it helps classify things and finely-tune the algorithm. We see the classification tree has 900 number of samples and 20 predictors, for a tree size of 42. The "credit_train[-17]" was used in x because the default field has a location of 17. Also listed is the tree size of 42, which indicates 
+that the tree is 42 decisions deep.
+
+```{r}
+summary(credit_model)
+```
+
+**Comment:** An example of a decision tree is shown in the above preceding output. For example we can evaluate the first three decisions: 
+                1. The checking account balance should be unknown or greater than 200 DM to be classified as "not likely to default."
+                2. Otherwise, if the checking account balance is less than zero DM or between one and 200 DM then further make decision based on various other fields such as, credit history and saving balance etc. The decision tree, numbers in parenthesis for example (412/54) for checking balance. A total of 50 of the 412 examples that reached the decision were incorrectly classified as "not likely to default." Therefore, 50 applicants defaulted despite the model's prediction.
+
+The Error heading states that around 136 of 900 training instances were correctly classified by the model, i.e., a total of 15.1%. A total of 23 actual no values were incorrectly classified as yes (false positives), while 113 yes values were classifieds as no (false negatives).
+
+<font size="5.6"> Evaluating Model Performance</font> 
+
+```{r}
+credit_pred <- predict(credit_model, credit_test)
+```
+
+**Comment:** The credit_pred is a vector of prediction class values. In the gmodels package, we can use the CrossTable() function to compare the class values to the actual values. 
+
+```{r}
+library(gmodels)
+CrossTable(credit_test$default, credit_pred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+```
+
+**Comment:** Out of 100 loan applications, around 55 are not default and 13 were classified as default, which is resulting in an accuracy of 68 percent and an error rate of 32 percent. It is slightly worse than its performance on the training data, but this is not surprising given that models perform worse on unknown data. The model predicted 13 out of 33 default applicants of loan application corectly. Which is a low accuracy to understand if bank is losing money on each defaulter, considering the higher accuracy we need to sharpen the accuracy. 
+
+
+<font size="5.6"> Improving Model Performance</font> 
+
+```{r}
+credit_boost10 <- C5.0(credit_train[-17], as.factor(credit_train$default), trials = 10)
+credit_boost10
+#summary(credit_boost10)
+```
+
+```{r}
+credit_boost_pred10 <- predict(credit_boost10, credit_test)
+CrossTable(credit_test$default, credit_boost_pred10,prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+
+```
+
+
+```{r}
+matrix_dimensions <- list(c("no", "yes"), c("no", "yes"))
+names(matrix_dimensions) <- c("predicted", "actual")
+matrix_dimensions
+```
+
+```{r}
+error_cost <- matrix(c(0, 1, 4, 0), nrow = 2)
+```
+
+
+```{r}
+credit_cost <- C5.0(credit_train[-17], as.factor(credit_train$default), costs = error_cost)
+credit_cost_pred <- predict(credit_cost, credit_test)
+CrossTable(credit_test$default, credit_cost_pred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+```
+
+# Question 3:
+
+The four algorithms mentioned are supervised machine learning algorithms that can be used for predictive modeling.
+
+K-nearest neighbor (KNN) is an algorithm that classifies data points based on the distance between them and its closest neighbors. It is a lazy learner, meaning it doesn’t build a model based on the data until it is asked to make a prediction. The kNN algorithm is a non-parametric and instance-based method for classification. It is used for finding the k closest training samples in feature space to the test sample and then takes a majority vote among the k neighbors to classify the test sample. The choice of k is an important hyperparameter that affects the bias-variance trade off. kNN works well when there is a clear separation between classes in the feature space, and the dataset is not too large. However, it may not perform well when the feature space is high-dimensional, and the dataset is imbalanced.
+
+Naive Bayes is a probabilistic algorithm that uses Bayes’ theorem to classify data points according to their characteristics. It’s a simple and fast algorithm, but it often yields inaccurate results due to its assumption of independence between features. Naive Bayes is a probabilistic algorithm that makes classification decisions based on the Bayes theorem. It assumes that the features are conditionally independent given the class label. Naive Bayes works well when the features are independent of each other and the dataset is not too large. It is commonly used in text classification, spam filtering, and sentiment analysis. However, it may not perform well when the features are dependent on each other or there are many irrelevant features in the dataset. C5.0 is a decision tree algorithm that uses information gain or gain ratio to select the best splitting attribute at each node. It builds a tree recursively by splitting the dataset into subsets based on the selected attribute. C5.0 works well when the decision boundaries between classes are non-linear and the dataset is not too large. It is commonly used in data mining, customer segmentation, and fraud detection. However, it may not perform well when the decision boundaries are complex or the dataset is noisy.
+
+C5.0 Decision Trees is a more sophisticated algorithm that builds decision trees to classify data points. The algorithm creates a tree-like graph of decisions and their possible outcomes. It is often used for complex problems because it can handle larger datasets and work with both numerical and categorical variables. C5.0 is a decision tree algorithm that uses information gain or gain ratio to select the best splitting attribute at each node. It builds a tree recursively by splitting the dataset into subsets based on the selected attribute. C5.0 works well when the decision boundaries between classes are non-linear and the dataset is not too large. It is commonly used in data mining, customer segmentation, and fraud detection. However, it may not perform well when the decision boundaries are complex or the dataset is noisy.
+
+RIPPER Rules is a rule-based algorithm that creates a set of if-then rules to classify data points. It is an efficient algorithm that can handle noisy and missing data, and can be used to solve problems with a large number of classes. RIPPER (Repeated Incremental Pruning to Produce Error Reduction) is a rule-based algorithm that generates a set of rules by iteratively pruning the decision tree. It uses a separate-and-conquer strategy and focuses on the most difficult instances to classify. RIPPER works well when the dataset has many irrelevant features and complex decision boundaries. It is commonly used in medical diagnosis and credit scoring. However, it may not perform well when the dataset is too large or the rules become too complex to interpret.
+
+Choosing the best model for your data depends on the nature of the problem and the type of data you’re working with. KNN is a simple algorithm that works well on small datasets with few features. Naive Bayes is a fast and easy algorithm that works well on categorical data. C5.0 Decision Trees is a powerful algorithm that works well on complex datasets with both numerical and categorical variables. RIPPER Rules is an efficient algorithm that can handle noisy and missing data and works well with a large number of classes
+
+# Question 4:
+
+Model ensembles are collections of multiple models that are combined to produce a better predictive performance than that of the individual models. The method of combining models is known as ensemble learning, and it is used in various domains such as machine learning, statistics, and data mining.[1]
+
+The importance of model ensembles lies in their ability to produce more accurate and robust results than a single model. Ensemble learning helps to reduce the variance and bias of individual models, thereby improving the generalization capability of the model. Ensemble models also provide a greater understanding of the underlying relationships, which can be useful for decision-making.[2]
+
+Boosting and bagging are two of the most popular ensemble learning methods. Boosting works by sequentially adding models to the ensemble, while each model is trained to focus on the errors of the previous models.[3] This approach has the benefit of combining strong models to focus on the weaknesses of each model in the ensemble, thereby improving the overall performance. Boosting focuses on reducing bias, and it is particularly useful when the base models are weak, such as simple decision stumps or linear models. Boosting can be used with any type of base model, and it can be computationally expensive because the base models are trained sequentially.[4,5]
+
+Gradient Boosting Machines (GBM) and AdaBoost are examples of boosting ensembles that have been shown to be effective in many different domains, including computer vision, speech recognition, and natural language processing.[6,7,8]
+
+Bagging, on the other hand, operates by randomly selecting instances from the training set for each model in the ensemble. This ensures that each model has a different training set and thus does not suffer from the same issues as a single model would.[3] Bagging also helps to reduce the variance of individual models, thereby improving the performance of the ensemble. Bagging helps reduce overfitting by reducing variance, and it is particularly useful when the base models are unstable, such as decision trees. Bagging can be used with any type of base model, and it is a relatively simple and computationally efficient method.[4,5]
+
+Random forest is an example of a bagging ensemble that uses decision trees as the base model. Random forests have been shown to be effective in many different domains, including image classification, natural language processing, and speech recognition.[2,3]
+
+Code Examples:
+
+*Boosting:*
+library(adabag)
+clf <- AdaBag(formula = y ~ ., data = x_train,
+              nIter = 50,
+              baseLearner = "tree",
+              metric = "accuracy",
+              control = adabag.control())
+clf$fit()
+
+*Bagging*
+library(ipred)
+clf <- bagging(formula = y ~ ., data = x_train,
+               nbagg = 50,
+               metric = "accuracy",
+               control = bagging.control())
+clf$fit()
+              
+           
+References:
+
+1. Brownlee, J. (2019). How and Why to Use Ensemble Learning Techniques in Machine Learning. Retrieved from https://machinelearningmastery.com/ensemble-learning-techniques-in-machine-learning/
+
+2. Hastie, T., Tibshirani, R., & Friedman, J. H. (2009). The Elements of Statistical Learning: Data Mining, Inference, and Prediction. New York: Springer.
+
+3. Vikram, K. (2016). Ensemble Learning. Retrieved from https://www.analyticsvidhya.com/blog/2015/08/introduction-ensemble-learning
+
+4. Ensemble Methods in Machine Learning: https://towardsdatascience.com/ensemble-methods-in-machine-learning-what-are-they-and-why-use-them-68ec3f9fef5f
+
+5. Bagging and Boosting: https://www.sciencedirect.com/topics/computer-science/bagging-and-boosting
+
+6. Random Forest: https://towardsdatascience.com/understanding-random-forest-58381e0602d2
+
+7. Gradient Boosting Machines: https://towardsdatascience.com/understanding-gradient-boosting-machines-9be756fe76ab
+
+8. AdaBoost: https://towardsdatascience.com/understanding-adaboost-2f94f22d5bfe
+
+
+
+# Question 2:
+
+```{r}
+mushrooms <- read.csv("/Users/sanikakalvikatte/Downloads/mushrooms.csv", stringsAsFactors = TRUE)
+mushrooms
+
+```
+
+```{r}
+mushrooms$veil_type <- NULL
+table(mushrooms$type)
+install.packages("OneR")
+library(OneR)
+mushroom_1R <- OneR(type ~ ., data = mushrooms)
+mushroom_1R
+```
+
+```{r}
+mushroom_1R_pred <- predict(mushroom_1R, mushrooms)
+table(actual = mushrooms$type, predicted = mushroom_1R_pred)
+if(Sys.getenv("JAVA_HOME")!=""){
+    Sys.setenv(JAVA_HOME="")
+}
+library(rJava)
+install.packages("rJava")
+install.packages("RWeka")
+library(RWeka)
+mushroom_JRip <- JRip(type ~ ., data = mushrooms)
+mushroom_JRip
+```
+
+

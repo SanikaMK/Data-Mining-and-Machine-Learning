@@ -1,0 +1,203 @@
+---
+title: "Practice Problems 2"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Question 1:
+
+```{r}
+USArrests
+```
+
+**Comment:** As we see, "USArrests" is a in-bult data set, thus by just calling the data set, without uploding any csv, we get an output.
+
+```{r}
+d<-as.numeric(USArrests$Murder)
+d
+s <- sd(d)
+s
+m <- mean(d)
+m
+z <- m - d
+z
+z <- z/s
+z
+z <- (m - d)/ s
+z
+
+```
+
+**Comment:** Initially, we need to focus on the values of Murder instead of the entire data frame, to do this the as.numeric() function was used to evaluate the Murder value for better calculation of the mean and standard deviation. Here the stand of Murder is 4.35551, mean is 7.788.
+
+
+```{r}
+z <- abs(z)
+z
+mean(z)
+o <- z[which(z>1.5)]
+o
+o <- which(z>1.5)
+o
+d[o]
+```
+**Comment:** Further calculating for the mean absolute value for the z score, and the outlier with a standard deviation of 1.5, we conclude that the mean is 0.8373394 and the outliers (d[o]) are 15.4, 17.4, 15.4, 16.1,  0.8, 14.4
+
+```{r}
+library(dplyr)
+USArrests %>%
+  select( Murder) %>%
+  filter( Murder == 17.4 | Murder == 15.4 | Murder == 16.1 | Murder == 0.8 | Murder == 14.4 )
+```
+
+**Comment:** Further looking for the outlier values we have this finding: Florida(15.4), Georgia(17.4), Louisiana(15.4), Mississippi(16.1), South Carolina(14.4), and North Dakota(0.8) are the outliers.
+
+# Question 2: 
+
+```{r}
+cor(USArrests$UrbanPop, USArrests$Murder, method = "pearson")
+```
+
+**Comment:** The pearson correlation coeff is around 0.07, which represents a very weak correlation between the urban population and murder. This has to say that higher urban population does not mean a higher murder rate across various states. 
+
+```{r}
+
+library(ggplot2)
+# Basic scatter plot
+ggplot(USArrests, aes(x=UrbanPop, y=Murder)) + geom_point(size=2, shape=23) + geom_smooth(method=lm)
+```
+
+```{r}
+# T test stats
+
+UrbanPop <- as.numeric(USArrests$UrbanPop)
+Murder <- as.numeric(USArrests$Murder)
+
+PairedResults <- t.test(UrbanPop,Murder)
+PairedResults
+```
+
+**Comment:** In the scattered plot we see a weak relation same as we derived from the cor() function.
+
+# Question 3:
+
+```{r}
+phonegrowth = read.csv("/Users/sanikakalvikatte/Downloads/Raw Data Mobile Phone Growth (Brazil) - Mobile Phone Subscriptions.csv", header = T)
+phonegrowth
+```
+
+**Comment:** The  data on the growth of mobile phone use in Brazil, isn't in-built as USArrest, thus this is done by downloading the file as a csv format and reading it in R through read.csv() function. 
+
+```{r}
+num<-nrow(phonegrowth)
+twoyear<-phonegrowth[(num-1):(num-2),2]
+weights<-c(5,2)
+twoyear_weighted<-weights*twoyear
+futureforecast<-sum(twoyear_weighted)/sum(weights)
+futureforecast
+```
+
+**Comment:** From the above analysis we can conclude that the future forecast for two years, weighted moving average (with weights of 5 for the most recent year, and 2 for other) is 194662700. The forecast is caluculated through formula and not with the help of any forecast functions().
+
+```{r}
+a<-0.4
+phonegrowth$ft<-0
+phonegrowth$e<-0
+phonegrowth
+```
+
+**Comment:** For exponential smoothing the value of alpha recommended is 0.4. Initially, there is an addition of two columns one for forecast(ft) and another for error(e). 
+
+```{r} 
+for(i in 2:(nrow(phonegrowth))){
+  phonegrowth$ft[i] <- phonegrowth$ft[i-1] + a*phonegrowth$e[i-1]
+  phonegrowth$e[i] <-phonegrowth[i,2] - phonegrowth$ft[i]
+}
+
+head(phonegrowth)
+tail(phonegrowth)
+
+n <- nrow(phonegrowth)
+
+f.es<-phonegrowth$ft[nrow(phonegrowth)-1]+a*phonegrowth$e[nrow(phonegrowth)-1]
+f.es
+```
+
+**Comment:** The formula for exponential smoothing is used through a for loop since we need to perform a forecasting for more values than a single value. As per the results of tail(phonegrowth), there is a NA value in the 12 year, this can be forecast with the help of linear regression trend line as shown below. The estimated smoothing for future forcast is 165028004.
+
+```{r}
+# Linear Regression Trendline
+
+library(ggplot2)
+ggplot(phonegrowth,aes(Year,Subscribers)) + geom_line()
+
+model<-lm(phonegrowth$Subscribers~phonegrowth$Year)
+model
+model_summ <- summary(model)
+model_summ
+
+F.t <- (-15710760) + ((18276748)*(12))
+F.t
+```
+
+**Comment:** Linear Regression Trendline is plotted through ggplot() of year and subscriptions and with the help os geom_line() in understand the linearity between both the points. Later, the model value and its summary is calculated, through this we get intercept coefficients. For forecasting a model, F(t) = a + mt is used the formula. Here a is the estimate Std of interception and m is the estimate Std for years. The forecast value for the 12 years is 203610216.
+
+
+# Question 4:
+
+```{r}
+phonegrowth$Subscribers[is.na(phonegrowth$Subscribers)] <- 203610216
+tail(phonegrowth)
+phonegrowth$e[12] <- 203610216 - 165028004
+tail(phonegrowth)
+
+model_new<-lm(phonegrowth$Subscribers~phonegrowth$Year)
+model_new
+modeln_summ <- summary(model_new)
+modeln_summ
+```
+
+**Comment:** Now as we have forecast the value for the 12th year, let us completed the data frame and replace the NA value, later as per the observation error was NA because the subscription value was NA, now we can calculate the error value. Now we have the new model summary as per the complete data frame that has been obtained. 
+
+
+```{r}
+phonegrowth$mse <- 0
+phonegrowth
+
+for(i in 1:nrow(phonegrowth)){
+  phonegrowth$mse[i] <- mean(phonegrowth$e[i]^2)
+}
+phonegrowth
+```
+
+**Comment:** The mean square error(MSE) of each time value is calculated using the formula, mean(df$error^2) for each time value. The lowest MSE is for the very first year. 
+
+```{r}
+# futureforecast model
+futureforecast_mse <- mean(futureforecast^2)
+futureforecast_mse
+
+#f.es model
+f.es_mse <- mean(f.es^2)
+f.es_mse
+
+#F.t model
+f.t_mse <- mean(F.t^2)
+f.t_mse
+
+```
+
+**Comment:** As per the analysis of the above values, the exponential smoothing is the model with the least MSE score of "2.723424e+16".
+
+# Question 5: 
+
+```{r}
+weigh_forcast<-c(futureforecast,f.es,F.t)
+weights<-c(1,2,4)
+weigh_avg<-weigh_forcast*weights
+F.wa<-sum(weigh_avg)/sum(weights)
+F.wa
+```
+
+**Comment:** The weighted average forecast by averaging out the three forecasts calculated in the question 3, with the following weights: 4 for trend line, 2 for exponential smoothing, 1 for weighted moving average is 191308510.

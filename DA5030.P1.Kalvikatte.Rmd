@@ -1,0 +1,708 @@
+---
+title: "Practicum 1"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+# Question 1:
+
+```{r}
+life_exp = read.csv("/Users/sanikakalvikatte/Downloads/Life Expectancy Data.csv", header = T)
+life_exp
+```
+Dropping Country, year and status as recommended in the Practicum.
+
+```{r}
+life_exp <- life_exp[ -c(1:3) ]
+life_exp
+```
+
+# Question 2:
+
+Exploring the data:
+
+```{r}
+summary(life_exp)
+dim(life_exp)
+```
+
+Histogram of Life Expentancy:
+
+```{r}
+life_exp[!is.na(life_exp$Life.expectancy),]
+
+```
+
+# Question 3:
+
+```{r}
+library(dplyr)
+library(ggplot2)
+ggplot(life_exp, aes(Life.expectancy)) + 
+  geom_histogram(aes(y = ..density..),color = "salmon", fill = "salmon") +
+  geom_density(color = "blue", alpha = 10)
+```
+
+# Question 4:
+
+```{r}
+shapiro.test(life_exp$Life.expectancy)
+ks.test(life_exp$Life.expectancy, "pnorm")
+```
+
+**Comment:** From the output, the *p-value < 0.05* implying that the distribution of the data are significantly different from normal distribution. In other words, we *cannot* assume the normality.
+
+# Question 5:
+
+```{r}
+life_exp
+```
+
+```{r}
+a <- life_exp$Life.expectancy
+m <- mean(a, na.rm = T)
+sd <- sd(a, na.rm = T)
+z <- (m - a)/sd
+z <- abs(z)
+o <- which(z>3)
+(a[o])
+```
+There are two outliers for life expectancy field.
+
+```{r}
+a <- life_exp$Adult.Mortality
+m <- mean(a, na.rm = T)
+sd <- sd(a, na.rm = T)
+z <- (m - a)/sd
+z <- abs(z)
+o <- which(z>3)
+length(a[o])
+```
+There are 40 outliers for adult morality field.
+
+```{r}
+a <- life_exp$infant.deaths
+m <- mean(a, na.rm = T)
+sd <- sd(a, na.rm = T)
+z <- (m - a)/sd
+z <- abs(z)
+o <- which(z>3)
+length(a[o])
+```
+There are 37 outliers for infant deaths field.
+
+```{r}
+a <- life_exp$Alcohol
+m <- mean(a, na.rm = T)
+sd <- sd(a, na.rm = T)
+z <- (m - a)/sd
+z <- abs(z)
+o <- which(z>3)
+length(a[o])
+```
+There are 3 outliers for alcohol field.
+
+```{r}
+a <- life_exp$percentage.expenditure
+m <- mean(a, na.rm = T)
+sd <- sd(a, na.rm = T)
+z <- (m - a)/sd
+z <- abs(z)
+o <- which(z>3)
+length(a[o])
+```
+There are 84 outliers for percentage expenditure field.
+
+```{r}
+a <- life_exp$Hepatitis.B
+m <- mean(a, na.rm = T)
+sd <- sd(a, na.rm = T)
+z <- (m - a)/sd
+z <- abs(z)
+o <- which(z>3)
+length(a[o])
+```
+There are 18 outliers for hepatitis field.
+
+```{r}
+a <- life_exp$Measles
+m <- mean(a, na.rm = T)
+sd <- sd(a, na.rm = T)
+z <- (m - a)/sd
+z <- abs(z)
+o <- which(z>3)
+length(a[o])
+```
+There are 48 outliers for measles field.
+
+```{r}
+a <- life_exp$BMI
+m <- mean(a, na.rm = T)
+sd <- sd(a, na.rm = T)
+z <- (m - a)/sd
+z <- abs(z)
+o <- which(z>3)
+length(a[o])
+```
+There are no outliers for bmi field.
+
+```{r}
+a <- life_exp$under.five.deaths
+m <- mean(a, na.rm = T)
+sd <- sd(a, na.rm = T)
+z <- (m - a)/sd
+z <- abs(z)
+o <- which(z>3)
+length(a[o])
+```
+There are 84 outliers for under 5 deaths field.
+
+```{r}
+a <- life_exp$Polio
+m <- mean(a, na.rm = T)
+sd <- sd(a, na.rm = T)
+z <- (m - a)/sd
+z <- abs(z)
+o <- which(z>3)
+length(a[o])
+```
+There are 172 outliers for Polio field.
+
+```{r}
+a <- life_exp$Diphtheria
+m <- mean(a, na.rm = T)
+sd <- sd(a, na.rm = T)
+z <- (m - a)/sd
+z <- abs(z)
+o <- which(z>3)
+length(a[o])
+```
+There are 170 outliers for Diphtheria field.
+
+```{r}
+a <- life_exp$HIV.AIDS
+m <- mean(a, na.rm = T)
+sd <- sd(a, na.rm = T)
+z <- (m - a)/sd
+z <- abs(z)
+o <- which(z>3)
+length(a[o])
+```
+There are 69 outliers for HIV AIDS field.
+
+# Question 6:
+
+```{r}
+newdf <- scale(life_exp)
+
+life2 <- subset (life_exp, select = -Life.expectancy)
+normalize <- function(x) 
+  { 
+    zscore <- (x - mean(x, na.rm = T))/sd(x, na.rm = T)
+  }
+life2 <- as.data.frame(lapply(life2, normalize))
+life2$Life.expectancy <- life_exp$Life.expectancy
+life2
+life2 <- abs(life2)
+life2
+```
+
+# Question 7:
+
+```{r}
+life_exp
+x <- life_exp[-1]
+x
+y <- life_exp[1]
+y
+y$binary_expectency <- with(y, ifelse(Life.expectancy >= 70, "good", "not_good"))
+y <- y[-1]
+y
+binary_expectency <- y
+life2 <- cbind(life2, binary_expectency)
+life2 <- subset(life2, select = -Life.expectancy)
+life2
+```
+
+# Question 8:
+
+```{r}
+library(dplyr)
+set.seed(300)
+stratified <- y %>%
+  group_by(binary_expectency) %>%
+  sample_n(size=15, replace = T)
+
+stratified
+
+```
+
+```{r}
+library(caret)
+set.seed(300)
+#Spliting data as training and test set. Using createDataPartition() function from caret
+indxTrain <- createDataPartition(y = y$binary_expectency,p = 0.15, list = FALSE)
+training <- as.data.frame(y[-indxTrain,])
+validation <- as.data.frame(y[indxTrain,])
+head(training)
+head(validation)
+```
+
+```{r}
+# Rename columns
+colnames(validation)[1] <- "validation"
+validation
+colnames(training)[1] <- "training"
+training
+```
+```{r}
+library(tidyr)
+training %>% drop_na(training)
+validation %>% drop_na(validation)
+```
+
+Performing data splitting with the sample method:
+
+```{r}
+#install.packages("sampler")
+library(sampler)
+library(splitstackshape)
+library(zoo)
+library(xts)
+```
+
+
+```{r}
+mix <- runif(nrow(life2))
+
+life2 <- life2[order(mix),]
+life2
+
+set.seed(300)
+#created stratified sample
+sampling <- stratified(life2,'binary_expectency', 0.15, bothSets = TRUE)
+training <- as.data.frame(sampling[2])
+validation <- as.data.frame(sampling[1])
+```
+
+```{r}
+colnames(validation) <- gsub("SAMP1.", "", colnames(validation))
+colnames(training) <- gsub("SAMP2.", "", colnames(training))
+```
+
+```{r}
+training
+validation
+```
+
+
+# Question 9:
+
+```{r}
+library("dplyr")
+library("tidyr")
+
+x["Adult.Mortality"][is.na(x["Adult.Mortality"])] <- 275
+x["infant.deaths"][is.na(x["infant.deaths"])] <- 1
+x["Alcohol"][is.na(x["Alcohol"])] <- 0.01
+x["percentage.expenditure"][is.na(x["percentage.expenditure"])] <- 10
+x["Hepatitis.B"][is.na(x["Hepatitis.B"])] <- 40
+x["Measles"][is.na(x["Measles"])] <- 400
+x["BMI"][is.na(x["BMI"])] <- 17
+x["GDP"][is.na(x["GDP"])] <- 620
+x["under.five.deaths"][is.na(x["under.five.deaths"])] <- 106
+x["Polio"][is.na(x["Polio"])] <- 10
+x["Diphtheria"][is.na(x["Diphtheria"])] <- 66
+```
+
+Load the training and test data
+
+```{r}
+#Loading the train data (x_label) and target data (y_label).
+
+x_label <- c("Adult.Mortality",
+"infant.deaths",
+"Alcohol",
+"percentage.expenditure",
+"Hepatitis.B",
+"Measles",
+"BMI",
+"under.five.deaths",
+"Polio",
+"Total.expenditure",
+"Diphtheria")
+y_label <- c("binary_expectency")
+# x_label
+# y_label <- as.data.frame(y_label)
+# y_label
+```
+
+Select the value of K and calculate the ED
+
+```{r}
+#Calculating the euclidean distance
+
+ED<-function(p,q){
+distance=0
+  for (i in (1:(length(p)-1))){
+    distance=distance+(p[i]-q[i])^2
+  }
+  return(sqrt(distance))
+}
+```
+
+
+```{r}
+train_scaled <- as.data.frame(scale(training[,1:11], center = TRUE, scale = T))
+validation_scaled <- as.data.frame(scale(validation[,1:11], center = TRUE, scale = T))
+train_scaled$binary_expectency <- training[,y_label]
+validation_scaled$binary_expectency <- validation[,y_label]
+```
+
+
+```{r}
+knn_predict = function(y, train, k, x_label, y_label){
+   # creating a new df - temp
+  temp <- train
+  #creating a new column - dist
+  temp$dist <- apply(train[,x_label], 1, ED, y)
+   #ordering the data
+  train_ordered <- temp[order(temp$dist),]
+  #filtering the data from 1 to value of k
+  train_filterd <- train_ordered[1:k,]
+  #data is filtered
+  predicted_values <- tail(names(sort(table(train_filterd[, y_label]))), 1)
+  return(predicted_values)
+}
+```
+
+```{r}
+#standardisation with z-score
+z_scaler = function(df, col_name, x){
+  mean_x <- mean(df[,col_name])
+  sd_x <- sd(df[,col_name])
+  return((x-mean_x)/sd_x)
+}
+y <- c(275,1,0.01,10,40,400,17,620,106,10,66)
+
+#Adult Mortality = 275 | infant deaths = 1 | Alcohol = 0.01 | percentage expenditure = 10| Hepatitis B = 40 |Measles  = 400 | BMI = 17 | GDP = 620 | under-five deaths  = 106 | Polio = 10 | Diphtheria = 66
+```
+
+```{r}
+#Standardization on y 
+y_scaled <- c()
+for (i in 1:length(y)){
+  #print(training)
+  #print(x_label[i])
+  #print(y[i])
+  y_scaled <- append(y_scaled, z_scaler(training, x_label[i], y[i]))
+  #print(y_scaled)
+}
+#knn prediction
+knn_predict(y_scaled, training, 5, x_label, y_label)
+```
+
+
+```{r}
+train_scaled[,x_label]$Adult.Mortality[is.na(train_scaled[,x_label]$Adult.Mortality)] <- 275
+train_scaled[,x_label]$infant.deaths[is.na(train_scaled[,x_label]$infant.deaths)] <- 1
+train_scaled[,x_label]$Alcohol[is.na(train_scaled[,x_label]$Alcohol)] <- 0.01
+train_scaled[,x_label]$percentage.expenditure[is.na(train_scaled[,x_label]$percentage.expenditure)] <- 10
+train_scaled[,x_label]$Hepatitis.B[is.na(train_scaled[,x_label]$Hepatitis.B)] <- 40
+train_scaled[,x_label]$Measles[is.na(train_scaled[,x_label]$Measles)] <- 400
+train_scaled[,x_label]$BMI[is.na(train_scaled[,x_label]$BMI)] <- 17
+train_scaled[,x_label]$under.five.deaths[is.na(train_scaled[,x_label]$under.five.deaths)] <- 620
+train_scaled[,x_label]$Polio[is.na(train_scaled[,x_label]$Polio)] <- 106
+train_scaled[,x_label]$Total.expenditure[is.na(train_scaled[,x_label]$Total.expenditure)] <- 10
+train_scaled[,x_label]$Diphtheria[is.na(train_scaled[,x_label]$Diphtheria)] <- 66
+
+train_scaled[,y_label][is.na(train_scaled[,y_label])] <- "good"
+
+validation["Adult.Mortality"][is.na(validation["Adult.Mortality"])] <- 275
+validation["infant.deaths"][is.na(validation["infant.deaths"])] <- 1
+validation["Alcohol"][is.na(validation["Alcohol"])] <- 0.01
+validation["percentage.expenditure"][is.na(validation["percentage.expenditure"])] <- 10
+validation["Hepatitis.B"][is.na(validation["Hepatitis.B"])] <- 40
+validation["Measles"][is.na(validation["Measles"])] <- 400
+validation["BMI"][is.na(validation["BMI"])] <- 17
+validation["GDP"][is.na(validation["GDP"])] <- 620
+validation["under.five.deaths"][is.na(validation["under.five.deaths"])] <- 106
+validation["Polio"][is.na(validation["Polio"])] <- 10
+validation["Diphtheria"][is.na(validation["Diphtheria"])] <- 66
+
+validation
+validation <- validation %>% select(c(1:9,11))
+validation
+```
+```{r}
+y_scaled <- c(275,1,0.01,10,40,400,17,620,106,10,66)
+```
+
+
+```{r}
+
+library(class)
+knn(train = train_scaled[,x_label], test = y_scaled, cl = train_scaled[,y_label],k=5)
+```
+
+We can derive that, both the models give us same answer that is, the life expectency is good.
+
+# Question 11:
+
+```{r}
+limit <- 1000
+accuracy_scores <- c()
+for (k in 2:10){
+  predicted_value <- knn(train_scaled[1:limit,x_label], y_scaled, cl=train_scaled[1:limit,y_label],k=k)
+  accuracy_score <- 100 * sum(y_scaled == predicted_value)/NROW(validation_scaled)
+  accuracy_scores <- append(accuracy_scores, accuracy_score)
+}
+accuracy <- data.frame(accuracy_scores)
+accuracy$k <- c(2:10)
+accuracy
+```
+
+```{r}
+ggplot(data = accuracy, aes(x = k, y = accuracy_scores)) +
+geom_line(color = "blue") +
+geom_point(color = "black") +
+labs(title = "Plot of k from 2 to 10 versus accuracy" , x = "k",
+y = "accuracy") + theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+# Problem Set 2:
+
+# Question 2:
+
+```{r}
+abalone = read.csv("/Users/sanikakalvikatte/Downloads/abalone.csv", header = T)
+abalone
+```
+
+```{r}
+target_data <- as.data.frame(abalone$Rings)
+target_data
+train_data <- abalone[,c(1:8)]
+train_data
+```
+
+```{r}
+df <- dummyVars(" ~ .", data=abalone)
+
+encoded_data <- data.frame(predict(df, newdata=abalone))
+encoded_data
+```
+
+```{r}
+df <- dummyVars(" ~ .", data=train_data)
+
+encoded_train <- data.frame(predict(df, newdata=train_data))
+encoded_train
+
+normalize <- function(x) {
+  return((x - min(x)) / (max(x) - min(x)))
+}
+train <- as.data.frame(lapply(encoded_train, normalize))
+train
+```
+
+# Question 4:
+
+```{r}
+# Euclidean distance
+dist <- function(p,q)
+{
+d <- 0
+for (i in 1:length(p)) {
+d <- d + (p[i] - q[i])^2
+}
+dist <- sqrt(d)
+}
+```
+
+```{r}
+# Neighbors
+neighbors <- function (train, new_data)
+{
+ds <- numeric(nrow(train_data))
+
+# Calculate distance
+for (i in 1:nrow(train_data))
+{
+p <- train[i,]
+ds[i] <- dist(p,new_data)
+}
+ds <- as.vector(unlist(ds))
+return(ds)
+}
+```
+
+```{r}
+# K-closest neighbors
+k.closest <- function(neighbor,k)
+{
+ordered.neighbors <- order(neighbor)
+kvalue <- ordered.neighbors[1:k]
+}
+```
+
+```{r}
+weight_prediction <- function(y, kclosest) {
+length <- length(kclosest)
+values <- y[kclosest,]
+sums <- values[1]*2 + values[2]*1.5 + sum(values[3:length]*1)
+w <- 2 + 1.5 + length(3:length)*1
+wt_avg <- sums/w
+}
+```
+
+```{r}
+# KNN reg function
+knn.reg <- function(new_data, target_data, train_data, k)
+{
+nbrs <- neighbors(train_data, new_data)
+c <- k.closest(nbrs,3)
+wt_mean <- weight_prediction(target_data, c)
+return(wt_mean)
+}
+```
+
+
+# Question 5:
+
+```{r}
+new_data <- c(0,0,1,0.34,0.491,0.245,0.4853,0.2532,0.0887,0.19)
+#forecasting the price
+knn.reg(new_data, target_data, train, 3)
+```
+
+# Question 6:
+
+```{r}
+df <- train
+final_df <- target_data
+head(df)
+head(final_df)
+```
+
+```{r}
+set.seed(300)
+
+sample <- floor(0.15 * nrow(df))
+
+train_set <- sample(seq_len(nrow(df)), size = sample)
+
+data_train <- df[train_set,]
+
+data_test <- df[-train_set,]
+
+sample
+```
+
+
+```{r}
+library(class)
+train_labels <- final_df[train_set,1]
+test_labels <- final_df[-train_set,1]
+```
+
+```{r}
+knn_predict <- function(data_train, data_test, k){
+knn_v <- knn(train = data_train,test = data_test,cl=train_labels, k)
+mse_data <- data.frame(pred = as.numeric(levels(knn_v))[knn_v], actual = test_labels)
+mse_data$e <- 0
+for (i in 1:nrow(mse_data)) 
+  {
+  mse_data$e[i] <- mse_data$actual[i] - mse_data$pred[i]
+  MSE <- mean(mse_data$e^2)
+  }
+return(MSE)
+}
+```
+
+```{r}
+k_values = c(1,2,3,4,5)
+k_df <- data.frame(k_values)
+k_df$mse_values <- 0
+
+for (i in 1:nrow(k_df)){ 
+k <- k_df$k_values[i]
+k_df$mse_values[i] <- knn_predict(data_train,data_test,k)
+}
+
+k_df
+```
+
+# Problem 3:
+
+# Question 1:
+
+```{r}
+house_prop <- read.csv("/Users/sanikakalvikatte/Downloads/raw_sales.csv")
+head(house_prop)
+```
+
+```{r}
+library("lubridate")
+house_prop$datesold <- as_date(house_prop$datesold, "%YYYY%MM%DDT000000")
+house_prop <- subset(house_prop,bedrooms != 0)
+unique(house_prop$bedrooms)
+house_prop
+```
+We need lubridate package to deal with dates here. 
+
+```{r}
+house_df <- house_prop %>% 
+  mutate(year = format(house_prop$datesold, "%Y"), month = format(house_prop$datesold, "%m")) %>% 
+  group_by (year, month) %>% 
+  summarise(avg_price_br = mean(price/bedrooms))
+```
+
+
+```{r}
+house_df
+```
+
+```{r}
+house_df <- house_df[order(house_df$year, house_df$month),]
+house_df$tper <- seq(1:nrow(house_df))
+house_df
+```
+
+```{r}
+#install.packages("xts")
+library("xts")
+house_df$date <- as.yearmon(paste(house_df$year, house_df$month, sep ="-"))
+house_df
+house_df <- as.data.frame(house_df)
+```
+
+# Question 3:
+
+```{r}
+mm <- as.list(house_df$month)
+
+plot <- ggplot(house_df, aes(x = date, y = avg_price_br, length(40)))+
+  geom_line(color ="salmon") + geom_point()
+plot
+```
+Average price is increasing with respect date.
+
+# Question 4:
+
+```{r}
+nrow(house_df)
+o <- tail(house_df,n=4)
+o
+n = 150
+last_4 <- house_df[n:(n-3),3]
+last_4
+w <- c(4,3,2,1)
+sw <- w*last_4
+weighted_moving_average <- sum(sw)/sum(w)
+weighted_moving_average
+```
+The moving average weights for 4,3,2,1 are 207192.5 212319.9 215005.0 213527.0

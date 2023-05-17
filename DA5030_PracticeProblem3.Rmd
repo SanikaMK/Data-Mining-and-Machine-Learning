@@ -1,0 +1,184 @@
+---
+title: "DA5030_PracticeProblem3"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Question 1:
+
+```{r}
+pcan_df = read.csv("/Users/sanikakalvikatte/Downloads/prostate_cancer.csv", stringsAsFactors = FALSE)
+pcan_df
+```
+
+**Comment:** As required in the practice problem 3, the data set has been downloaded and uploaded to R by read.csv(). The stringsAsFactors() function was used to convert every char vector to function. The field diagnosis_result is chr in this case. This will help us ahead while building the model. The alternative to this is to add as.factor() to the test data set. Analysing the data, it is about prostate cancer, which can be Benign or Malignant. 
+
+# Question 2:
+
+
+```{r}
+str(pcan_df)
+```
+
+**Comment:** Looking at the str() structure of the data set, we can see diagnosis_result is of chr data type. This gives a quick glance about the data. 
+
+
+```{r}
+#pcan_df
+pcan_df <- pcan_df[-1]
+pcan_df
+```
+
+**Comment:** The first column is id, which is of not much use. This removing it won't cause any harm/ biases to the model. The df[-1] is used to remove the first column.
+
+
+```{r}
+table(pcan_df$diagnosis_result)
+```
+
+**Comment:** The table(df$field) is used to get the count of the field. Here in this case, the field is diagnosis_result. The results show, there are 38 Benign and 62 Malignant.
+
+```{r}
+pcan_df$diagnosis <- factor(pcan_df$diagnosis_result, levels = c("B", "M"), labels = c("Benign", "Malignant"))
+pcan_df$diagnosis
+round(prop.table(table(pcan_df$diagnosis)) * 100, digits = 1)
+```
+
+**Comment:** The above results are shown in percentage of the population that has B or M as a diagnosis. 
+
+
+```{r}
+normalize <- function(x) {
+return ((x - min(x)) / (max(x) - min(x))) }
+#normalize
+prc_n <- as.data.frame(lapply(pcan_df[2:9], normalize))
+#prc_n
+```
+
+**Comment:** Moving towards normalization of the data. Due to the possibility of different scales for values for each variable, this feature is of high importance. Data should be normalized and transformed to a common scale. The prc_n() function was used, to normalize df[2:9] as we have removed the first data set. The final result is stored to prc_n data frame using as.data.frame() function.
+
+
+```{r}
+summary(prc_n$radius)
+```
+
+**Comment:** The summary() function can give us details about the normalization of the data frame.
+
+
+```{r}
+prc_train <- prc_n[1:65,]
+prc_test <- prc_n[66:100,]
+```
+
+**Comment:** The data set would be divided equally into training and test parts at 65:35. 
+
+```{r}
+prc_train_labels <- pcan_df[1:65, 1]
+prc_test_labels <- pcan_df[66:100, 1] 
+```
+
+**Comment:** Using the diagnosis factor in column 1 of the prc data frame, this code creates the PRC_train_labels and PRC_test_labels data frames.
+
+
+```{r}
+#install.packages("class")
+library(class)
+prc_test_pred <- knn(train = prc_train, test = prc_test,cl = prc_train_labels, k=10)
+```
+
+**Comment:** For training a model on data, we can choose which training package we wish to use, here the package "class" is used for training the model. When k is a user-specified number, the knn() function identifies the k-nearest neighbors using Euclidean distance. The value for k is generally chosen as the square root of the number of observations. Each example in the test data set will have a factor value of predicted labels, which will be assigned to the data frame prc_test_pred.
+
+
+```{r}
+#install.packages("gmodels")
+library(gmodels)
+CrossTable(x = prc_test_labels, y  = prc_test_pred, prop.chisq = FALSE)
+```
+
+**Comment:** The CrossTable() function was used for the evaluation of the model. There are total of 35 observations. Of those, 5 cases (TN->True Negatives) were accurately predicted as Benign (B) in nature, constituting 22.9%. In addition, 16 out of 35 observations were correctly predicted as Malignant (M), which constitutes 45.7% of the observations. A total of 16 predictions out of 35 were True Positives. The are 11 cases of False Positive. The total accuracy of this model is 68.6% 
+
+
+# Question 3:
+
+```{r}
+#install.packages("caret")
+library(caret)
+#install.packages("ISLR")
+library(ISLR)
+anyNA(pcan_df)
+```
+
+**Comment:** Creating a model with the help of "caret" package. 
+
+```{r}
+set.seed(300)
+#Spliting data as training and test set. Using createDataPartition() function from caret
+indxTrain <- createDataPartition(y = pcan_df$diagnosis_result,p = 0.65,list = FALSE)
+training <- pcan_df[indxTrain,]
+testing <- pcan_df[-indxTrain,]
+
+#Checking distibution in origanl data and partitioned data
+prop.table(table(pcan_df$diagnosis_result)) * 100
+prop.table(table(testing$diagnosis_result)) * 100
+prop.table(table(training$diagnosis_result)) * 100
+```
+
+**Comment:** Here setting the seed() to 300, for the model to be replicate. Initially, the data is separated in train and test, we can derive that the percentage of the B or M cancer is same as we got from, earlier separation method.
+
+
+```{r}
+trainX <- training[,names(training) != "diagnosis_result"]
+preProcValues <- preProcess(x = trainX,method = c("center", "scale"))
+preProcValues
+```
+
+**Comment:** The above step is the pre-processing for a training model. The kNN() requires variables to be normalized or scaled. caret provides facility to preprocess data. Here, centring and scaling has been choosen for the pre-processing.
+
+```{r}
+set.seed(400)
+ctrl <- trainControl(method="repeatedcv",repeats = 3)
+knnFit <- train(diagnosis_result ~ ., data = training, method = "knn", trControl = ctrl, preProcess = c("center","scale"), tuneLength = 20)
+
+#Output of kNN fit
+knnFit
+```
+
+**Comment:** Caret package provides train() method for training our data for various algorithms. We just need to pass different parameter values for different algorithms. The trainControl() controls the computational nuances of the train() method. The knnFit will give us the output of the fit we wish to derive. 
+
+```{r}
+#Plotting yields Number of Neighbours Vs accuracy (based on repeated cross validation)
+plot(knnFit)
+```
+
+**Comment:** Here's a plot regarding the accuracy vs neighbor. It is a downward curve, which is shooting down once the neighbor value reaches at 35. 
+
+
+```{r}
+knnPredict <- predict(knnFit,newdata = testing )
+#Get the confusion matrix to see accuracy value and other parameter values
+
+confusionMatrix(knnPredict,as.factor(testing$diagnosis_result))
+```
+
+**Comment:** The accuracy of this model is "Accuracy : 0.9706" i.e. 97%, which is very high and is not matching the model we derived from "class" package. There is one false positive for M cancer. Total of 12 True positive for B and 21 for M.
+
+
+```{r}
+library(caret)
+CrossTable(x = testing$diagnosis_result, y  = knnPredict, prop.chisq = FALSE)
+```
+
+**Comment:** The test data consisted of 34 observations. Out of which 12 cases have been accurately predicted (TN->True Negatives) as Benign (B) in nature which constitutes 35.3%. Also, 21 out of 34 observations were accurately predicted (TP-> True Positives) as Malignant (M) in nature which constitutes 61.8%. Thus a total of 21 out of 35 predictions where TP i.e, the patients with actual M cancer. There is 1 false positive case. The total accuracy of the model is 97%.
+
+# Question 4:
+
+```{r}
+confusionMatrix(prc_test_pred, as.factor(prc_test_labels))
+```
+
+```{r}
+confusionMatrix(knnPredict,as.factor(testing$diagnosis_result))
+```
+
+**Comment:** By looking at two differently trained model, with different packages, currently on this data frame we can derive that the model 1 is of accuracy = 68.5% which is less as compared to the model 2 at a higher accuracy of 97%. The positive class of both the model is Benign Cancer. Both the model has 0 B predicted as M, false positive cases. 

@@ -1,0 +1,218 @@
+---
+title: "Practice Problem 8"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Question 1:
+
+```{r}
+teens <- read.csv("/Users/sanikakalvikatte/Downloads/snsdata.csv")
+teens
+```
+
+**Comment:** Loading the social networking service (SNS) data in teens data frame. The first glance at the data, I see certain NA fields which will either need to be imputed or removed. Overall, the data states various grad years and their method to network with each other through various facilities provided by the University. 
+
+
+```{r}
+str(teens)
+table(teens$gender)
+table(teens$gender, useNA = "ifany")
+summary(teens$age)
+```
+
+**Comment:** There are total 3000 teens with four variables indicating personal characteristics and 36 words indicating interests. The table() function allow us to understand how many teens are females or males. However, at the start of the data set loading there were certain NA values spotted, thus to identify these values useNA = "ifany" has been utilized. The summary shows that, there are no NAs in the field age. 
+
+
+```{r}
+teens$age <- ifelse(teens$age >= 13 & teens$age < 20, teens$age, NA)
+summary(teens$age)
+```
+
+```{r}
+teens$female <- ifelse(teens$gender == "F" & !is.na(teens$gender), 1, 0)
+teens$no_gender <- ifelse(is.na(teens$gender), 1, 0)
+```
+
+**Comment:** Initially, creating a new column named "female". It is assigning the value 1 to this new column for all rows where the "gender" column of the "teens" data frame is equal to "F" and is not missing (represented by the "NA" value in R). For all other rows, it assigns the value 0 to the "female" column. The second line of code, is creating another new column named "no_gender". It is assigning the value 1 to this new column for all rows where the "gender" column of the "teens" data frame is missing (represented by the "NA" value in R). For all other rows, it assigns the value 0 to the "no_gender" column.
+
+```{r}
+table(teens$gender, useNA = "ifany")
+table(teens$female, useNA = "ifany")
+table(teens$no_gender, useNA = "ifany")
+```
+
+**Comment:** To cross-check if there is any data loss, the above operation was performed. To check, we see the values under '1' they are matching with the number in the first table which is the untreated data set. Thus, we can conclude that there is no data loss and it is safe to move ahead with the given data.
+
+```{r}
+library(tidyr)
+mean <- function(x, ...) {
+  if (is.numeric(x)) {
+    return(base::mean(x, ...))
+  } else {
+    return(NaN)
+  }
+}
+
+mean(teens$age)
+mean(teens$age, na.rm = TRUE)
+aggregate(data = teens, age ~ gradyear, mean, na.rm = TRUE)
+```
+
+**Comment:** The average mean values of teenagers is 17.25, if NA values are removed. This denotes that the average student in our data base is about 17 years old. The data frame obtained from the aggregate() function needs to be merged with the original data, which can be time-consuming. Instead, we can opt for the ave() function that produces a vector of group means repeated to match the length of the original vector.
+
+```{r}
+ave_age <- ave(teens$age, teens$gradyear, FUN = function(x) mean(x, na.rm = TRUE))
+teens$age <- ifelse(is.na(teens$age), ave_age, teens$age)
+summary(teens$age)
+
+```
+
+**Comment:** In order to replace the missing values with the calculated means, an additional ifelse() function call is needed. This function will use the ave_age value only if the original age value was NA.
+
+```{r}
+library(stats)
+interests <- teens[5:40]
+interests_z <- as.data.frame(lapply(interests, scale))
+summary(interests$basketball)
+summary(interests_z$basketball)
+
+```
+
+**Comment:** Initially, created a new data frame called "interests" by selecting columns 5 through 40 from "teens".Later created another data frame called "interests_z" using the as.data.frame() function and lapply() function. The lapply() function applies the scale() function to each column of the "interests" data frame, which standardizes the values in each column (i.e., converts them to z-scores).
+
+The summary() function to display summary statistics for the "basketball" column of the "interests" data frame, which could include information such as the minimum and maximum values, mean, median, and quartiles.
+
+The same summary() function to display summary statistics for the "basketball" column of the "interests_z" data frame, which now shows the standardized z-scores of the basketball interest rather than the original values.
+
+```{r}
+RNGversion("3.5.2")
+set.seed(2345)
+teen_clusters <- kmeans(interests_z, 5)
+teen_clusters$size
+teen_clusters$centers
+```
+
+**Comment:** The rows that are labelled 1 to 5 are basically five different clusters that kmeans() have calculated. The numbered rows in the output correspond to the five clusters, and the values across each row indicate the average value of the particular interest mentioned at the top of the column. These values have been standardized using z-scores, which means that positive values indicate interest levels above the mean for all teenagers, while negative values indicate interest levels below the mean. For instance, the basketball column in the third row shows the highest value, indicating that cluster 3 has the greatest average interest in basketball among all the clusters. Based on this glimpse of the interest data, we can draw some initial conclusions about the clusters. It appears that Cluster 3 has much higher interest levels than the mean for all sports, which could indicate that this group comprises athletes who fit the stereotype of the "Breakfast Club." On the other hand, Cluster 1 has the highest frequency of mentions of "cheer leading" and the word "hot."
+
+
+```{r}
+teens$cluster <- teen_clusters$cluster
+teens[1:5, c("cluster", "gender", "age", "friends")]
+aggregate(data = teens, age ~ cluster, mean)
+aggregate(data = teens, female ~ cluster, mean)
+aggregate(data = teens, friends ~ cluster, mean)
+```
+
+**Comment:** The success of a clustering algorithm relies on two factors: the quality of the generated clusters and how the resulting information is utilized. Our previous section showcased how the five clusters generated were valuable in providing fresh and valuable perspectives on teenage interests. Consequently, it seems that the algorithm is functioning effectively. As a result, we can now concentrate on implementing these insights into practical use. With the help of the aggregate() function, we can examine the demographic features of the clusters as well. Despite expectations, the mean age across clusters is relatively consistent, indicating that teenage identities are frequently established before high school. Overall about 74 percent of the SNS users are female. Cluster one, the so-called hot and cheerleader, is nearly 84 percent female, while clusters two and five are only about 70 percent female. 
+
+
+# Question 2:
+
+## 2.1 What are some of the key differences between SVM and Random Forest for classification? When is each algorithm appropriate and preferable? Provide examples.
+
+SVM and Random Forest are two commonly used machine learning algorithms for classification tasks, but they have distinct differences. SVMs are a discriminative model that identifies a hyper plane that maximizes the margin between classes, which works well for datasets with clear boundaries but may struggle with noisy or large datasets. On the other hand, Random Forest is an ensemble model that combines multiple decision trees to make predictions and is better suited for datasets with complex relationships between variables, although over fitting can be an issue with a high number of trees. Ultimately, the decision of which algorithm to use depends on the specific characteristics of the dataset and analysis goals. As a general rule, consider the dataset's size and complexity, as well as the desired level of interpretability and prediction accuracy, when selecting between SVM and Random Forest.
+
+SVM is generally more suitable for:
+
+High-dimensional datasets with a clear margin of separation between classes
+Small to medium-sized datasets
+Datasets with few outliers
+Non-linearly separable data, which can be handled using kernel tricks
+Tasks that require accurate classification, such as image recognition or spam detection
+
+Random Forest is generally more suitable for:
+
+Complex datasets with non-linear relationships between variables
+Large datasets with high dimensionality
+Noisy datasets with missing values and outliers
+Tasks that require both accurate and interpretable results
+Data mining, feature selection, and regression tasks
+
+In summary, SVM is a good choice when the dataset is small, clean, and the goal is to achieve high classification accuracy. Random Forest is a good choice when the dataset is large, complex, and the goal is to identify important features and interpret the results. However, it is important to test both algorithms and compare their performance on the specific dataset at hand to determine which one is more appropriate and preferable.
+
+```{r}
+library(e1071)
+
+# Load the iris dataset
+data(iris)
+
+# Split the data into training and testing sets
+trainIndex <- sample(1:nrow(iris), 0.7*nrow(iris))
+trainData <- iris[trainIndex,]
+testData <- iris[-trainIndex,]
+
+# Train an SVM model
+svmModel <- svm(Species ~ ., data=trainData, kernel="linear")
+
+# Predict the class labels for the test data
+svmPred <- predict(svmModel, testData[,-5])
+
+# Evaluate the accuracy of the SVM model
+svmAcc <- sum(svmPred == testData[,5])/nrow(testData)
+
+```
+
+
+```{r}
+#install.packages("randomForest")
+library(randomForest)
+
+# Load the iris dataset
+data(iris)
+
+# Split the data into training and testing sets
+trainIndex <- sample(1:nrow(iris), 0.7*nrow(iris))
+trainData <- iris[trainIndex,]
+testData <- iris[-trainIndex,]
+
+# Train a random forest model
+rfModel <- randomForest(Species ~ ., data=trainData, ntree=500)
+
+# Predict the class labels for the test data
+rfPred <- predict(rfModel, testData[,-5])
+
+# Evaluate the accuracy of the random forest model
+rfAcc <- sum(rfPred == testData[,5])/nrow(testData)
+
+```
+
+Sources:
+
+Kecman, V. (2015). Support vector machines: An introduction. Springer.
+Breiman, L. (2001). Random forests. Machine learning, 45(1), 5-32.
+Chen, C., Liaw, A., & Breiman, L. (2004). Using random forest to learn imbalanced data. University of California, Berkeley, Tech. Rep, 666.
+
+
+## 2.2 Why might it be preferable to include fewer predictors over many?
+
+It is preferable to include fewer predictors than many for several reasons. Firstly, when there are too many predictors, the model may fit the noise in the data instead of the underlying signal, leading to overfitting and poor performance on new data. Secondly, the complexity of the model increases, making it difficult to interpret, and identifying important features and underlying relationships in the data becomes challenging. Thirdly, including fewer predictors can improve the computational efficiency of the model, making it faster to train and evaluate on new data. Striking a balance between capturing relevant information and avoiding overfitting while maintaining interpretability is crucial when selecting predictors for a model.
+
+Sources:
+
+James, G., Witten, D., Hastie, T., & Tibshirani, R. (2013). An introduction to statistical learning (Vol. 112). New York: Springer.
+Hastie, T., Tibshirani, R., & Friedman, J. (2009). The elements of statistical learning: Data mining, inference, and prediction (2nd ed.). New York: Springer.
+
+## 2.3 You are asked to provide R-Squared for a kNN regression model. How would you respond to that request?
+
+If asked to provide the R-squared for a kNN regression model, I would explain that R-squared is not an appropriate metric for assessing the performance of kNN regression models. R-squared is a measure of the variance in the dependent variable that is explained by the independent variables in a linear regression model. However, kNN regression models are non-parametric and do not make any assumptions about the relationship between the independent and dependent variables. Therefore, evaluation metrics like mean squared error (MSE), root mean squared error (RMSE), or mean absolute error (MAE) would be more suitable for assessing the performance of kNN regression models. These metrics calculate the difference between the predicted and actual values without making assumptions about the specific functional form of the relationship.
+
+Sources:
+
+Hastie, T., Tibshirani, R., & Friedman, J. (2009). The elements of statistical learning: Data mining, inference, and prediction (2nd ed.). New York: Springer.
+Kuhn, M., & Johnson, K. (2013). Applied predictive modeling. Springer.
+
+## 2.4 How can you determine which features to include when building a multiple regression model?
+
+Choosing the right set of features to include in a multiple regression model is a crucial step in the modeling process. To accomplish this, a combination of domain knowledge and statistical methods can be used.
+
+Domain knowledge can provide insights into which features are likely to be relevant based on the problem being addressed. Exploratory data analysis and correlation analysis can help in identifying patterns and relationships between features and the outcome variable. Feature selection techniques such as Lasso, Random Forest, or stepwise regression can assist in selecting the most important features and removing irrelevant or redundant ones.
+
+In the end, the decision of which features to include in the model should be based on a combination of statistical performance and practical considerations such as interpretability, complexity, and computational efficiency. It is essential to strike a balance between the two to create an optimal model.
+
+Sources:
+
+James, G., Witten, D., Hastie, T., & Tibshirani, R. (2013). An introduction to statistical learning (Vol. 112). New York: Springer.
+Hastie, T., Tibshirani, R., & Friedman, J. (2009). The elements of statistical learning: Data mining, inference, and prediction (2nd ed.). New York: Springer.
+Kuhn, M., & Johnson, K. (2013). Applied predictive modeling. Springer.

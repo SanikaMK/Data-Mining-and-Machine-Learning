@@ -1,0 +1,229 @@
+---
+title: "Practice Problem 6"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Question 1:
+
+```{r}
+math = read.table("/Users/sanikakalvikatte/Downloads/student/student-mat.csv", header = T, sep = ";")
+math
+```
+
+**Comment:** The data set student math is loaded as per the given website in the practice problem.
+
+<font size="5.6">1.1 Creating scatter plots and pairwise correlations </font> 
+
+```{r}
+#install.packages("psych")
+library(psych)
+library(ggplot2)
+pairs.panels(math[c("age", "absences", "G1", "G2", "G3")])
+ggplot(data = math, aes(x=G1, y=G3))+ geom_point(color="black")+ geom_smooth(method = lm, se= FALSE, color="red")+ labs(title = "G1 vs G3", x="G1", y="G3")
+ggplot(data = math, aes(x=G2, y=G3))+ geom_point(color="black")+ geom_smooth(method = lm, se= FALSE, color="red")+ labs(title = "G2 vs G3", x="G2", y="G3")
+```
+
+**Comment:** There is a right-skewed distribution of age and absences in the histograms. There is a high correlation coefficient between G1, G2, and G3, suggesting a high degree of collinearity within the model. All the variables in the scatter plots are positively correlated.
+
+<font size="5.6">1.2 Build a multiple regression model </font> 
+
+```{r}
+library(dplyr)
+math_reg <- math %>% select(age, Medu, failures, paid, higher, internet, G1, G2, G3)
+
+math_reg$paid <- ifelse(math_reg$paid=="yes",1, 0)
+math_reg$higher <- ifelse(math_reg$higher=="yes",1, 0)
+math_reg$internet <- ifelse(math_reg$internet=="yes",1, 0)
+
+reg_Medu <- as.data.frame(dummy.code(math_reg$Medu)[,c(4:1)])
+names(reg_Medu) <- c("primaryedu","middleedu","secondaryedu","higheredu")
+math_reg$Medu <- NULL
+
+reg_failures <- as.data.frame(dummy.code(math_reg$failures)[,2:4])
+names(reg_failures) <- c("fail1", "fail2", "fail3")
+math_reg$failures <- NULL
+
+math_reg <- cbind(reg_Medu, reg_failures, math_reg)
+
+l1 <- lm(G3~., data = math_reg)
+summary(l1)
+```
+
+**Comment:** The coefficients intercept states fail1, G1 and G2 have strong relation statistically. 
+
+<font size="5.6">1.3 Backward Elimination </font> 
+
+```{r}
+step(l1, direction = "backward")
+```
+
+**Comment:** The coefficients intercept states G1 and G2 have strong relation, whearas fail1 has low ratio statistically. 
+
+```{r}
+l2 <- lm(G3 ~ secondaryedu + fail1 + G1 + G2, data = math_reg)
+summary(l2)
+```
+
+```{r}
+anova(l2, l1)
+```
+
+<font size="5.6">1.4 The 95% confidence interval for a prediction </font> 
+
+```{r}
+new_stu <- data.frame(secondaryedu=1, fail1=0, G1=13, G2=8)
+new_pred <- predict(l2, new_stu)
+new_pred
+```
+
+```{r}
+new_pred-1.96*1.918
+new_pred+1.96*1.918
+```
+
+**Comment:** The 95% confidence interval for the prediction is 4.10 to 11.62.
+
+<font size="5.6">1.5 The RMSE for this model </font> 
+
+```{r}
+new_pred1 <- predict(l2, math_reg)
+mse <- mean((new_pred1-math_reg$G3)^2)
+rmse <- sqrt(mse)
+rmse
+```
+
+The RMSE for this model 1.905.
+
+
+# Question 2:
+
+<font size="5.6">2.1 Mark pass-fail </font> 
+
+```{r}
+math2 <- math
+math2$PF <- ifelse(math2$G3<10, "F", "P")
+table(math2$PF)
+math2$PF_1 <- ifelse(math2$PF=="P", 1, 0)
+```
+
+**Comment:** There are total 130 students who fail, whereas there are 265 studnets who passed the test.
+
+<font size="5.6">2.2 Binomial logistic regression model </font> 
+
+```{r}
+math_reg2 <- math2 %>% select(school, sex, age, studytime, failures, schoolsup, higher, famrel, freetime, G1, G2, PF_1)
+ml1 <- glm(PF_1~ ., data = math_reg2, family = binomial)
+summary(ml1)
+step(ml1, direction = "backward")
+ml2 <- glm(formula = PF_1 ~ school + age + studytime + famrel + G1 + 
+    G2, family = binomial, data = math_reg2)
+summary(ml2)
+pval <- 1-pchisq(500.50-126.59, 394-388)
+pval
+anova(ml2, ml1, test = "Chisq")
+```
+
+**Comments:** The parameters age, studytime, famrel, G2 are statistically significant in this model after backward elimination. The p value for this model is 0 which is statistically significant. Therefore, we can reject the null hypothesis.
+
+<font size="5.6">2.3 State the regression equation </font> 
+
+```{r}
+round(coefficients(ml2), 3)
+```
+
+**Comments:** Regression equation: RE= -11.364+1.230(schoolMS)-0.632(age)-0.800(studytime)+0.778(famrel)+0.305(G1)+1.923(G2)
+
+<font size="5.6">2.4 State the accuracy </font> 
+
+```{r}
+#install.packages("gmodels")
+library(caret)
+new_pred2 <- predict(ml2, math_reg2, type = "response")
+
+new_pred2 <- ifelse(new_pred2> 0.5, 1, 0)
+
+confusionMatrix(as.factor(math_reg2$PF_1), as.factor(new_pred2))
+```
+
+**Comment:** The accuracy of this model is 0.9392. There were total 14 false positives and 10 false negatives predicted in this model.
+
+# Question 3:
+
+```{r}
+wine <- read.csv("/Users/sanikakalvikatte/Downloads/whitewines.csv", header =  T)
+wine
+```
+
+```{r}
+str(wine)
+hist(wine$quality)
+```
+
+```{r}
+wine_train <- wine[1:3750, ]
+wine_test <- wine[3751:4898, ]
+```
+
+```{r}
+#install.packages("rpart")
+library(rpart)
+m.rpart <- rpart(quality ~ ., data = wine_train)
+m.rpart
+```
+
+```{r}
+#install.packages("rpart.plot") 
+library(rpart.plot)
+rpart.plot(m.rpart, digits = 3)
+rpart.plot(m.rpart, digits = 4, fallen.leaves = TRUE,
+               type = 3, extra = 101)
+
+```
+
+**Comment:** The wine_train data frame can be used as a predictor or outcome variable via the R formula interface by specifying quality as the outcome variable. In order to distinguish the resulting model object from the model tree we will train later, the model object is named m.rpart. Numerous other aspects of the visualization can be adjusted in addition to the digits parameter. 
+
+```{r}
+p.rpart <- predict(m.rpart, wine_test)
+summary(p.rpart)
+summary(wine$quality)
+cor((p.rpart),(wine_test$quality))
+```
+
+```{r}
+MAE <- function(actual, predicted) {
+    mean(abs(actual - predicted))
+  }
+MAE(p.rpart, wine_test$quality)
+mean(wine_train$quality)
+MAE(5.87, wine_test$quality)
+
+```
+
+```{r}
+library(Cubist)
+m.cubist <- cubist(x = wine_train[-12], y = wine_train$quality)
+m.cubist
+summary(m.cubist)
+p.cubist <- predict(m.cubist, wine_test)
+summary(p.cubist)
+cor(p.cubist, wine_test$quality)
+MAE(wine_test$quality, p.cubist)
+```
+
+```{r}
+RMSE <- function(actual, predicted) {
+  sqrt(mean(abs(predicted - actual)^2))
+}
+
+rmse1 <- RMSE(p.rpart, wine_test$quality)
+rmse1
+```
+
+```{r}
+rmse2 <- RMSE(p.cubist, wine_test$quality)
+rmse2
+```
+
+The rmse is 0.687

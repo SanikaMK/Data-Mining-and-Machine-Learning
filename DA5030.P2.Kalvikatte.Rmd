@@ -1,0 +1,760 @@
+---
+title: "Practicum 2"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+<font size="10.6"> Problem 1:</font> 
+
+# Question 1:
+
+```{r}
+adult.data = read.csv("/Users/sanikakalvikatte/Downloads/adult.data", header = FALSE)
+adult.data
+adult.test = read.csv("/Users/sanikakalvikatte/Downloads/adult.test", skip = 2, header = FALSE)
+adult.test
+```
+
+```{r}
+colnames(adult.data)[1]  <- "age" 
+colnames(adult.data)[2]  <- "workclass" 
+colnames(adult.data)[3]  <- "fnlwgt" 
+colnames(adult.data)[4]  <- "education" 
+colnames(adult.data)[5]  <- "education_num" 
+colnames(adult.data)[6]  <- "marital_status" 
+colnames(adult.data)[7]  <- "occupation" 
+colnames(adult.data)[8]  <- "relationship" 
+colnames(adult.data)[9]  <- "race" 
+colnames(adult.data)[10]  <- "sex" 
+colnames(adult.data)[11]  <- "capital_gain" 
+colnames(adult.data)[12]  <- "capital_loss" 
+colnames(adult.data)[13]  <- "hrs_weekly" 
+colnames(adult.data)[14]  <- "native_country" 
+colnames(adult.data)[15]  <- "income" 
+adult.data
+
+colnames(adult.test)[1]  <- "age" 
+colnames(adult.test)[2]  <- "workclass" 
+colnames(adult.test)[3]  <- "fnlwgt" 
+colnames(adult.test)[4]  <- "education" 
+colnames(adult.test)[5]  <- "education_num" 
+colnames(adult.test)[6]  <- "marital_status" 
+colnames(adult.test)[7]  <- "occupation" 
+colnames(adult.test)[8]  <- "relationship" 
+colnames(adult.test)[9]  <- "race" 
+colnames(adult.test)[10]  <- "sex" 
+colnames(adult.test)[11]  <- "capital_gain" 
+colnames(adult.test)[12]  <- "capital_loss" 
+colnames(adult.test)[13]  <- "hrs_weekly" 
+colnames(adult.test)[14]  <- "native_country" 
+colnames(adult.test)[15]  <- "income" 
+adult.test
+```
+
+```{r}
+adult = rbind(adult.data, adult.test)
+adult
+```
+
+# Question 2:
+
+```{r}
+summary(adult)
+str(adult)
+head(adult)
+tail(adult)
+```
+
+# Question 3:
+
+```{r}
+library(caret)
+library(psych)
+set.seed(100)
+sample <- sample(c(TRUE, FALSE), nrow(adult), replace=TRUE, prob=c(0.75,0.25))
+train  <- adult[sample, ]
+validation   <- adult[!sample, ]
+```
+
+```{r}
+train
+validation
+sum(apply(train,2, function(x) is.na(x))) 
+sum(apply(validation,2, function(x) is.na(x)))
+```
+
+# Question 4:
+
+```{r}
+unique(adult$income)
+adult$income[adult$income ==  " <=50K."] <- "<=50K"
+adult$income[adult$income ==  " <=50K"] <- "<=50K"
+adult$income[adult$income ==  " >50K"] <- ">50K"
+adult$income[adult$income ==  " >50K."] <- ">50K"
+unique(adult$income)
+adult
+
+adult_features <- adult[, c(1,2,4,9,10,14)]
+library(tm)
+adult$income <- factor(adult$income)
+table(adult$income)
+adult_corpus <- VCorpus(VectorSource(adult_features))
+#adult_corpus
+```
+
+
+```{r}
+adult_corpus_clean <- tm_map(adult_corpus, content_transformer(tolower))
+xab <- as.character(adult_corpus[[1]])
+xbb <-as.character(adult_corpus_clean[[1]])
+```
+
+
+```{r}
+print(adult_corpus)
+inspect(adult_corpus[1:2])
+ghj <- as.character(adult_corpus[[1]])
+hhh <- lapply(adult_corpus[1:2], as.character)
+adult_corpus_clean <- tm_map(adult_corpus, content_transformer(tolower))
+```
+
+```{r}
+ccc <- as.character(adult_corpus[1])
+jjj <- as.character(adult_corpus_clean[1])
+```
+
+```{r}
+adult_corpus_clean <- tm_map(adult_corpus_clean, removeNumbers)
+adult_corpus_clean <- tm_map(adult_corpus_clean, removeWords, stopwords())
+adult_corpus_clean <- tm_map(adult_corpus_clean, removePunctuation)
+```
+
+```{r}
+adult_corpus_clean <- tm_map(adult_corpus_clean, stemDocument)
+adult_corpus_clean <- tm_map(adult_corpus_clean, stripWhitespace)
+as.character(adult_corpus[1:3])
+adult_dtm <- DocumentTermMatrix(adult_corpus_clean)
+```
+
+```{r}
+library(dplyr)
+library(data.table)
+adult
+adult_raw <- as.data.frame(adult[,2])
+#adult_raw <- select(adult, c('age', 'education', 'workclass', 'sex', 'race', 'native_country', 'income'))
+adult_raw
+```
+
+
+```{r}
+set.seed(100)
+
+adult_dtm_train <- adult_features[1:36749, ]
+adult_dtm_test  <- adult_features[36750:48842, ]
+
+adult_train_labels <- adult[1:36749, ]$income
+adult_test_labels  <- adult[36750:48842, ]$income
+```
+
+```{r}
+prop.table(table(adult_train_labels))
+prop.table(table(adult_test_labels))
+```
+```{r}
+library(tm)
+adult_dtm_train <- DocumentTermMatrix(adult_dtm_train)
+removeSparseTerms(adult_dtm_train, 0.80)
+findFreqTerms(adult_dtm_train, 5)
+
+adult_dtm_test <- DocumentTermMatrix(adult_dtm_test)
+removeSparseTerms(adult_dtm_test, 0.80)
+findFreqTerms(adult_dtm_test, 5)
+
+adult_freq_words <- findFreqTerms(adult_dtm_train, 5)
+
+convert_counts <- function(x) {
+    x <- ifelse(x > 0, "Yes", "No")
+  }
+
+adult_dtm_freq_train <- adult_dtm_train[ , adult_freq_words]
+adult_dtm_freq_test <- adult_dtm_test[ , adult_freq_words]
+
+adult_train <- apply(adult_dtm_freq_train, MARGIN = 2,
+    convert_counts)
+adult_test  <- apply(adult_dtm_freq_test, MARGIN = 2, convert_counts)
+```
+
+```{r}
+library(klaR)
+adult_income_classifier <- NaiveBayes(adult_train, as.factor(adult_train_labels))
+
+# adult_train
+# adult_train_labels
+```
+
+```{r}
+# Question 4:
+
+
+```{r}
+# Create a NB of the features: age, education, workclass, sex, race, and native country.
+adult_train
+```
+
+```{r}
+summary(adult_train)
+
+adult_train_labels <- adult_train$income
+adult_test_labels <- adult_test$income
+adult_train_labels
+adult_test_labels
+
+adult_train_features <- adult_train[, c(1,2,4,9,10,14)]
+adult_train_features
+
+adult_test_features <- adult_test[, c(1,2,4,9,10,14)]
+adult_test_features
+```
+
+
+
+```{r}
+library(klaR)
+nb_classifier <- NaiveBayes(income ~ age + workclass + education + sex + race + native_country, data = adult_train)
+#adult_train
+#adult_train_labels
+```
+
+```{r}
+nb_classifier
+adult_train
+adult_test
+```
+
+
+
+```{r}
+nb_test_pred <- predict(nb_classifier, adult_train_features)
+nb_test_pred
+```
+
+```{r}
+a <- unname(nb_test_pred[[1]])
+a
+library(gmodels)
+CrossTable(a, adult_train_labels, 
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, 
+           dnn = c('predicted' , 'actual'))
+
+```
+
+The probability that an individual earn more than $50K is about 75% which is higher. 
+
+# Question 5:
+
+```{r}
+library(caret)
+cm <- confusionMatrix(adult_train_labels,a)
+cm
+
+```
+
+**Comment:** 
+
+# Question 6:
+
+```{r}
+# Create a full logistic regression model of the features: age, education, workclass, sex, race, and native country.
+adult_train
+adult_test
+adult_train_features
+adult_test_features
+```
+
+```{r}
+mylogit <- glm(income ~ age + workclass + education + sex + race + native_country, data = adult_train, family = "binomial")
+```
+
+```{r}
+summary(mylogit)
+```
+
+# Question 7:
+
+```{r}
+mylogit_pred <- predict(mylogit, adult_train, type = "response")
+mylogit_pred
+mylogit_pred_final <- factor(c(ifelse(mylogit_pred >= 0.5, 1, 0)), levels = c(0,1))
+unname(mylogit_pred_final)
+```
+```{r}
+adult_train$income
+```
+
+```{r}
+cnm <- confusionMatrix(mylogit_pred_final, as.factor(adult_train$income))
+cnm
+```
+
+**Comment:**
+
+# Question 8: 
+
+```{r}
+library(rpart)
+
+mytree <- rpart(
+  income ~ age + workclass + education + sex + race + native_country, 
+  data = adult_train, 
+  method = "class"
+)
+
+mytree
+```
+
+```{r}
+library(rpart.plot)
+
+rpart.plot(mytree, digits = 10)
+```
+
+
+```{r}
+p.rpart <- predict (mytree, adult_train, type = 'class')
+summary(p.rpart)
+```
+
+
+# Question 9:
+
+```{r}
+library(caret)
+cm2 <- confusionMatrix(p.rpart, as.factor(adult_train$income))
+cm2
+```
+
+**Comment:**
+
+# Question 10:
+
+```{r}
+predictEarningsClass <- function(df) {
+  
+  b_list <- list()
+  for(i in 1:nrow(df)){
+    NB_pred <- predict(nb_classifier, df[i,])
+    nb_pred <- unname(NB_pred[[1]])
+    nb_classifier
+    log_pred <- predict(mylogit, df[i,], type = "response" )
+    log_pred_final <- factor(c(ifelse(log_pred >= 0.5, 1, 0)), levels = c(0,1))
+    log_pred_final <- unname(log_pred_final)
+    # print(df[i,])
+    dt_pred <- predict(mytree, df[i,], type = 'class')
+    dt_pred <- unname(dt_pred)
+    # print(df[i,])
+    cout <- "****"
+    print(cout)
+    print(nb_pred)
+    print(log_pred_final)
+    print(dt_pred)
+    a <- list(as.integer(nb_pred), as.integer(log_pred_final), as.integer(dt_pred))
+    print(a)
+    
+    a_sum <- Reduce("+", a)
+    print(a_sum)
+    print(cout)
+    b <- ifelse(a_sum > 1, 1,0)
+    b_list <- append(b_list, b)
+  }
+  return(b_list)
+}
+
+
+```
+
+```{r}
+ensemble_df <- adult_train_features
+
+ensemble_df <- data.frame(
+  age = "29",
+  education = " Bachelors",
+  workclass = " Local-gov",
+  sex = " Female",
+  race = " White",
+  native_country = " France"
+)
+
+
+ensemble_lst <- predictEarningsClass(ensemble_df)
+ensemble_lst
+```
+
+# Question 12:
+
+How do you compare the decision tree of rpart package with C5.0 package which is used in the book? which one do you prefer and why?
+
+When it comes to decision tree algorithms for classification and regression analysis, rpart and C5.0 are two popular choices. While rpart is known for its user-friendliness, C5.0 offers more advanced features and better performance.
+
+C5.0 is particularly useful for handling missing data and creating rules, and it has the ability to handle larger datasets and continuous variables better than rpart. On the other hand, rpart may be a better choice for those who prioritize simplicity and ease of use.
+
+Ultimately, the decision between rpart and C5.0 will depend on the specific needs and requirements of the project at hand. If accuracy and handling missing data are crucial, then C5.0 would be the preferred option. However, if simplicity and ease of use are more important, then rpart may be the way to go.
+
+
+I would prefer rpart from C5.0 package for classification. rpart can be either classification or regression whereas C5.0 is only classification. If your project requires the ability to perform both classification and regression analysis, then rpart may be the better choice.
+
+Additionally, some users may prefer rpart's more straightforward approach to decision tree construction and interpretation, as it is generally considered to be a more user-friendly algorithm. However, if your project requires the advanced features offered by C5.0, such as handling missing data and creating rules, then it may be worth considering despite its classification-only focus. Ultimately, the choice between rpart and C5.0 will depend on the specific needs and requirements of your project.
+
+# Problem 2:
+
+# Question 1:
+
+```{r}
+#install.packages("readxl")
+library("readxl")
+energy.df <- read_excel("/Users/sanikakalvikatte/Downloads/ENB2012_data.xlsx")
+energy.df
+```
+
+```{r}
+colnames(energy.df)[1] <- "relative_compactness"
+colnames(energy.df)[2] <- "surface_area"
+colnames(energy.df)[3] <- "wall_area"
+colnames(energy.df)[4] <- "roof_area"
+colnames(energy.df)[5] <- "overall_height"
+colnames(energy.df)[6] <- "orientation"
+colnames(energy.df)[7] <- "glazing_area"
+colnames(energy.df)[8] <- "glazing_area_distribution"
+colnames(energy.df)[9] <- "heating_load"
+colnames(energy.df)[10] <- "cooling_load"
+
+energy_df <- energy.df[1:9]
+energy_df
+```
+
+# Question 3:
+
+```{r}
+library(ggplot2)
+boxplot(energy_df$relative_compactness)
+boxplot(energy_df$surface_area)
+boxplot(energy_df$wall_area)
+boxplot(energy_df$roof_area)
+boxplot(energy_df$overall_height)
+boxplot(energy_df$orientation)
+boxplot(energy_df$glazing_area)
+boxplot(energy_df$glazing_area_distribution)
+boxplot(energy_df$heating_load)
+```
+
+```{r}
+
+# created vector with 5 characters
+columns= c("relative_compactness","surface_area","wall_area","roof_area","overall_height", "orientation", "glazing_area", "glazing_area_distribution", "heating_load")
+ 
+# pass this vector length to ncol parameter
+# and nrow with 0
+energy.no.df = data.frame(matrix(nrow = 768, ncol = length(columns)))
+ 
+# assign column names
+colnames(energy.no.df) = columns
+
+```
+
+
+```{r}
+energy.no.df$relative_compactness <- x[!x %in% boxplot.stats(energy_df$relative_compactness)$out]
+length(energy_df$relative_compactness) - length(energy.no.df$relative_compactness)
+
+energy.no.df$surface_area <- x[!x %in% boxplot.stats(energy_df$surface_area)$out]
+length(energy_df$surface_area) - length(energy.no.df$surface_area)
+
+energy.no.df$wall_area <- x[!x %in% boxplot.stats(energy_df$wall_area)$out]
+length(energy_df$wall_area) - length(energy.no.df$wall_area)
+
+energy.no.df$roof_area <- x[!x %in% boxplot.stats(energy_df$roof_area)$out]
+length(energy_df$roof_area) - length(energy.no.df$roof_area)
+
+energy.no.df$overall_height <- x[!x %in% boxplot.stats(energy_df$overall_height)$out]
+length(energy_df$overall_height) - length(energy.no.df$overall_height)
+
+energy.no.df$orientation <- x[!x %in% boxplot.stats(energy_df$orientation)$out]
+length(energy_df$orientation) - length(energy.no.df$orientation)
+
+energy.no.df$glazing_area <- x[!x %in% boxplot.stats(energy_df$glazing_area)$out]
+length(energy_df$glazing_area) - length(energy.no.df$glazing_area)
+
+energy.no.df$glazing_area_distribution <- x[!x %in% boxplot.stats(energy_df$glazing_area_distribution)$out]
+length(energy_df$glazing_area_distribution) - length(energy.no.df$glazing_area_distribution)
+
+energy.no.df$heating_load <- x[!x %in% boxplot.stats(energy_df$heating_load)$out]
+length(energy_df$heating_load) - length(energy.no.df$heating_load)
+```
+```{r}
+energy.no.df
+```
+
+# Question 4:
+
+```{r}
+library(psych)
+pairs.panels(energy.no.df)
+```
+
+```{r}
+shapiro.test(energy.no.df$relative_compactness)
+shapiro.test(energy.no.df$surface_area)
+shapiro.test(energy.no.df$wall_area)
+shapiro.test(energy.no.df$roof_area)
+shapiro.test(energy.no.df$overall_height)
+shapiro.test(energy.no.df$orientation)
+shapiro.test(energy.no.df$glazing_area)
+shapiro.test(energy.no.df$glazing_area_distribution)
+shapiro.test(energy.no.df$heating_load)
+```
+
+```{r}
+#Applying log transformation 
+log_relative_compactness <- log1p(energy.no.df$relative_compactness)
+log_surface_area <- log1p(energy.no.df$surface_area)
+log_wall_area <- log1p(energy.no.df$wall_area)
+log_roof_area <- log1p(energy.no.df$roof_area)
+log_overall_height <- log1p(energy.no.df$overall_height)
+log_orientation <- log1p(energy.no.df$orientation)
+log_glazing_area <- log1p(energy.no.df$glazing_area)
+log_glazing_area_distribution <- log1p(energy.no.df$glazing_area_distribution)
+log_heating_load <- log1p(energy.no.df$heating_load)
+
+#New dataframe with the transformed variables
+d_transformed <- data.frame(log_relative_compactness, log_surface_area, log_wall_area, log_roof_area, log_overall_height, log_orientation, log_glazing_area, log_glazing_area_distribution, log_heating_load)
+head(d_transformed)
+d_transformed1 <- cbind(energy.no.df, d_transformed)
+head(d_transformed1)
+```
+
+```{r}
+energy.tx <- d_transformed1[,c(1:9)]
+tail(energy.tx)
+```
+
+# Question 5: 
+
+```{r}
+correlation <- cor(energy.no.df[c("relative_compactness", "surface_area", "wall_area",
+                          "roof_area", "overall_height", "orientation", "glazing_area",  
+                          "glazing_area_distribution","heating_load")], method = "pearson",use = "complete.obs")
+correlation
+cor.plot(energy.no.df)
+```
+
+**Comment:** 
+
+
+# Question 6:
+
+
+```{r}
+#Splitting the datasets into 70/30 ratio
+#splitting energy.df into energy.training & energy.testing
+set.seed(1000)
+train_size <- 0.70
+train_index <- sample.int(nrow(energy.df), round(nrow(energy.df) * train_size))
+energy.training <- energy_df[train_index,]
+energy.testing <- energy_df[-train_index,]
+
+#splitting energy.no.df into energy.no.training & energy.no.testing
+set.seed(1000)
+train_size <- 0.70
+train_index <- sample.int(nrow(energy.no.df), round(nrow(energy.no.df) * train_size))
+energy.no.training <- energy.no.df[train_index,]
+energy.no.testing <- energy.no.df[-train_index,]
+
+#splitting energy.tx into energy.tx.training & energy.tex.testing
+set.seed(1000)
+train_size <- 0.70
+train_index <- sample.int(nrow(energy.tx), round(nrow(energy.tx) * train_size))
+energy.tx.training <- energy.tx[train_index,]
+energy.tx.testing <- energy.tx[-train_index,]
+```
+
+```{r}
+head(energy.training)
+head(energy.testing)
+head(energy.no.training)
+head(energy.no.testing)
+head(energy.tx.training)
+head(energy.tx.testing)
+```
+
+# Question 7:
+
+```{r}
+#multiple regression models for predicting heating load
+
+reg_energy <- lm(heating_load ~ ., data = energy.training)
+reg_no <- lm(heating_load ~ ., data = energy.no.training)
+reg_tx <- lm(heating_load ~ ., data = energy.tx.training)
+
+#summary of reg_energy
+summary(reg_energy)
+
+reg_energy_new <- lm(heating_load ~ relative_compactness+surface_area + wall_area + roof_area + overall_height + orientation+ glazing_area + glazing_area_distribution, data = energy.training)
+summary(reg_energy)
+
+reg_energy.predict <- predict(reg_energy_new, energy.testing)
+reg_energy.predict
+summary(reg_no)
+
+reg_no_new <- lm(heating_load ~ relative_compactness+surface_area + wall_area + roof_area + overall_height + orientation+ glazing_area + glazing_area_distribution, data = energy.no.training)
+summary(reg_no_new)
+
+reg_no.predict <- predict(reg_no_new, energy.no.testing)
+reg_no.predict
+summary(reg_no.predict)
+summary(reg_tx)
+
+reg_tx_new <- lm(heating_load ~ relative_compactness+surface_area + wall_area + roof_area + overall_height + orientation+ glazing_area + glazing_area_distribution, data = energy.tx.training)
+summary(reg_tx_new)
+reg_tx.predict <- predict(reg_tx_new, energy.tx.testing)
+reg_tx.predict
+summary(reg_tx.predict)
+```
+
+
+# Question 8:
+
+```{r}
+library(rpart)
+#Building Regression Tree model with energy.training
+r.model_1 <- rpart(heating_load ~ ., data = energy.training)
+r.model_1
+
+p.r.model_1 <- predict(r.model_1, energy.testing)
+summary(p.r.model_1)
+
+#Building Regression Tree model with energy.no.testing
+r.model_2 <- rpart(heating_load ~ ., data = energy.no.training)
+r.model_2
+
+p.r.model_2 <- predict(r.model_2, energy.no.testing)
+summary(p.r.model_2)
+
+#Building Regression Tree model with energy.tx.testing
+r.model_3 <- rpart(heating_load ~ ., data = energy.tx.training) #heating_load
+r.model_3
+
+p.r.model_3 <- predict(r.model_3, energy.tx.testing)
+p.r.model_3
+```
+
+# Question 9: 
+
+```{r}
+#Analysis of Multiple Regression model 1
+
+reg_model_1 <- predict(reg_energy_new, energy.testing)
+summary(reg_energy_new)$adj.r.squared
+
+library(Metrics)
+
+rmse(reg_model_1, energy.testing$heating_load) 
+reg_model_2 <- predict(reg_no_new, energy.no.testing)
+summary(reg_no_new)$adj.r.squared
+rmse(reg_model_2, energy.no.testing$heating_load)
+reg_model_3 <- predict(reg_tx_new, energy.tx.testing)
+summary(reg_tx_new)$adj.r.squared
+rmse(reg_model_3, energy.tx.testing$log_totalenergy)
+sse_1 <- sum((p.r.model_1 - energy.testing$heating_load))
+
+ssr_1 <- sum((p.r.model_1 - mean(energy.testing$heating_load)))
+
+
+sst_1 <- ssr_1 + sse_1
+
+r2_r1 <- ssr_1/sst_1
+r2_r1
+
+ad1_r2 <- (1-r2_r1)*(42-1)/42-4-1
+ad1_r2
+
+d_model_1 <- predict(r.model_1, energy.testing)
+rmse(d_model_1, energy.testing$heating_load)
+
+sse_2 <- sum((p.r.model_2 - energy.no.testing$heating_load))
+
+ssr_2 <- sum((p.r.model_2 - mean(energy.no.testing$heating_load)))
+
+
+sst_2 <- ssr_2 + sse_2
+
+r2_r2 <- ssr_2/sst_2
+r2_r2
+
+ad2_r2 <- (1-r2_r2)*(40-1)/40-3-1
+ad2_r2
+
+d_model_2 <- predict(r.model_2, energy.no.testing)
+rmse(d_model_2, energy.no.testing$heating_load)
+
+sse_3 <- sum((p.r.model_2 - energy.tx.testing$log_totalenergy))
+
+ssr_3 <- sum((p.r.model_2 - mean(energy.tx.testing$log_totalenergy)))
+
+
+sst_3 <- ssr_3 + sse_3
+
+r2_r3 <- ssr_3/sst_3
+r2_r3
+
+ad3_r2 <- (1-r2_r3)*(40-1)/40-3-1
+ad3_r2
+
+d_model_3 <- predict(r.model_3, energy.tx.testing)
+rmse(d_model_3, energy.tx.testing$log_totalenergy)
+```
+
+
+# Question 10:
+
+```{r}
+unit_change_no <- energy.no.testing
+unit_change_no$relative_compactness <- unit_change_no[,1] +1
+
+#Creating a variable with all the features not applying backward feature elimination
+reg_change <- lm(heating_load ~ relative_compactness+surface_area + wall_area + roof_area + overall_height + orientation+ glazing_area + glazing_area_distribution, data = energy.no.training)
+
+#Unit change prediction
+
+unit_predict <- predict(reg_change, unit_change_no)
+unit_predict
+summary(unit_predict)
+
+unit_predict_dec <- predict(r.model_2, unit_change_no)
+summary(unit_predict_dec)
+```
+
+# Question 11:
+
+```{r}
+pi_pred <- predict(reg_energy_new, energy.testing, interval = "prediction")
+pi_pred
+
+pi_pred_no <- predict(reg_no_new, energy.no.testing, interval = "prediction")
+pi_pred_no
+
+pi_pred_tx <- predict(reg_tx_new, energy.tx.testing, interval = "prediction")
+pi_pred_tx
+```
+
+# Question 12:
+
+Preprocessing the data before splitting it ensures that both the training and testing data are preprocessed in the same way, preventing data leakage and ensuring that the model can generalize well to new data. If we split the data first and then preprocess each subset separately, we risk introducing differences between the training and testing data that can negatively impact model performance. This is because the model has learned from the training data and may not perform as well on new data that is preprocessed differently. Thus, it is best practice to preprocess the data first before splitting it into training and testing subsets.
+
+If we perform data preprocessing after splitting the data, we may end up with different preprocessing steps applied to the training and testing sets. This can lead to inconsistencies and bias in our model's performance, as the model is trained on preprocessed data that is different from the testing data.
+
+By preprocessing the data before splitting, we ensure that both the training and testing data are preprocessed in the same way, using the same parameters and scaling factors. This helps to eliminate inconsistencies and bias, and ensures that our model generalizes well to new, unseen data.
+
+However, it is important to note that there may be certain preprocessing steps that can only be performed on the training data, such as feature selection or imputation based on the training set statistics. In such cases, it is still recommended to preprocess the data before splitting, but we would need to make sure that we perform these steps only on the training data and not on the testing data.
+
+

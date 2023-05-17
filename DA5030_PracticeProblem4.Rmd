@@ -1,0 +1,266 @@
+---
+title: "Practice Problem 4"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Question 1:
+
+```{r}
+sms_raw <- read.csv("/Users/sanikakalvikatte/Downloads/da5030.spammsgdataset.csv", stringsAsFactors = FALSE)
+sms_raw
+```
+
+**Comment:** The data suggested in the practice problem has been loaded in the sms_raw data frame, for the better understanding of Naive Bayes classifier. The data set contains type and text columns with spam on ham values, which could be further broken down for the evaluation of spam sms and there separation from the ham ones.
+
+```{r}
+str(sms_raw)
+```
+
+**Comment:** To understand the data better str() was used on the sms_raw. The data frame contains 5574 SMS messages, with two feature types: type and text. The type element stores, the type of the SMS, i.e., wheather the SMS is spam or ham. The text element stores the entire SMS.
+
+```{r}
+sms_raw$type <- factor(sms_raw$type)
+```
+
+**Comment:** The type element could be converted to a factor from a char vector, because it is a categorical variable. 
+
+```{r}
+str(sms_raw$type)
+```
+
+**Comment:** We can see that the newly created factor "type" has two levels: spam and ham. Further breaking it down for its count we use table(), hence, to see that ham has 4827 sms and spam has 747 sms labeling.
+
+```{r}
+table(sms_raw$type)
+```
+
+```{r}
+#install.packages("tm")
+library("tm")
+sms_corpus <- VCorpus(VectorSource(sms_raw$text))
+sms_corpus
+inspect(sms_corpus[1:2])
+```
+
+**Comment:** The "tm" package is an useful text mining package, which removes numbers, punctuation and handle uninteresting words that wouldn't be helpful for the evaluation of spam sms. For creating a corpus for a collection of text documents. In this scenrio for the current data frame corpus will be a collection of SMS messages. To create this collection VCorpus() function was used. The PCorpus() function is used to access a permanent corpus stored in a database. Later to check the first two elements of this collection inspect() was used.
+
+```{r}
+as.character(sms_corpus[[1]])
+```
+
+```{r}
+lapply(sms_corpus[1:2], as.character)
+```
+
+**Comment:** The character() functions helps us understand the sms while lapply gives us information about its level, which are spam and ham.
+
+```{r}
+sms_corpus_clean <- tm_map(sms_corpus,
+    content_transformer(tolower))
+```
+
+**Comment:** The tm_map() function provides a method to apply a transformation (also known as a mapping) to a tm corpus. We will use this function to clean up our corpus using 
+a series of transformations and save the result in a new object called corpus_clean.
+
+
+```{r}
+as.character(sms_corpus[[1]])
+```
+
+```{r}
+as.character(sms_corpus_clean[[1]])
+```
+
+```{r}
+sms_corpus_clean <- tm_map(sms_corpus_clean, removeNumbers)
+```
+
+**Comment:** The "removeNumbers" was used for cleaning the data and removing any number that wouldn't be helpful in the spam and ham will be used for the differentiation. 
+
+
+```{r}
+sms_corpus_clean <- tm_map(sms_corpus_clean,
+    removeWords, stopwords())
+```
+
+**Comment:** The terms such as to, and, but, and or are known as stop words and are usually removed from the text before mining. In spite of their frequency, they don't provide machine learning with much useful information. 
+
+```{r}
+sms_corpus_clean <- tm_map(sms_corpus_clean, removePunctuation)
+```
+
+
+```{r}
+removePunctuation("hello...world")
+```
+
+**Comment:** The data cleaning has been successully implemented, with the removal of numbers, punctuations and various comman words. 
+
+```{r}
+replacePunctuation <- function(x) {
+    gsub("[[:punct:]]+", " ", x)
+}
+```
+
+**Comment:** To work around the default behavior of removePunctuation(), create a custom function that replaces rather than removes punctuation characters.
+
+
+```{r}
+#install.packages("SnowballC")
+library("SnowballC")
+wordStem(c("learn", "learned", "learning", "learns"))
+```
+
+**Comment:** By integrating the Tm package with SnowballC, stemming functionality is provided. It is possible to obtain the root form of any vector of terms with the SnowballC package's wordStem() function for a character vector. In the above example that is what is done with the various forms of word learn. 
+
+```{r}
+sms_corpus_clean <- tm_map(sms_corpus_clean, stemDocument)
+```
+
+**Comment:** It is possible to apply the wordStem() function to an entire corpus of text documents using the stemDocument() transformation included in the tm package. With the number, stop word, and punctuation removed and stemming performed, the text messages are left with the blank spaces that once separated the now-missing pieces. Therefore, the final step in our text cleanup process is to remove additional whitespace using the built-in stripWhitespace() transformation.
+
+
+```{r}
+sms_corpus_clean <- tm_map(sms_corpus_clean, stripWhitespace)
+```
+
+**Comment:** The above code is to strip down all the extra white spaces that could be there. 
+
+```{r}
+as.character(sms_corpus[1:3])
+as.character(sms_corpus_clean[1:3])
+```
+
+```{r}
+sms_dtm <- DocumentTermMatrix(sms_corpus_clean)
+sms_dtm2 <- DocumentTermMatrix(sms_corpus, control = list(
+    tolower = TRUE,
+    removeNumbers = TRUE,
+    stopwords = TRUE,
+    removePunctuation = TRUE,
+    stemming = TRUE
+  ))
+
+```
+
+**Comment:** Tokenization of SMS messages is provided by the tm package, as you might imagine. The DocumentTermMatrix() function takes a corpus and creates 
+a data structure called a document-term matrix (DTM) in which rows indicate documents (SMS messages) and columns indicate terms (words).
+
+
+```{r}
+sms_dtm
+sms_dtm2
+```
+
+```{r}
+sms_dtm_train <- sms_dtm[1:4169, ]
+sms_dtm_test  <- sms_dtm[4170:5559, ]
+sms_train_labels <- sms_raw[1:4169, ]$type
+sms_test_labels  <- sms_raw[4170:5559, ]$type
+prop.table(table(sms_train_labels))
+prop.table(table(sms_test_labels))
+```
+
+**Comment:** A training portion will comprise 75 percent of the data, and a testing portion will comprise 25 percent. Since the SMS messages are sorted in a random order, we can simply take the first 4,169 for training and leave the remaining 1,390 for testing. Adding labels to each row of the training and testing matrices is also helpful for convenience later on. These labels are not stored in the DTM, so we need to pull them from the original sms_raw data frame. To confirm that the subsets are representative of the complete set of SMS data, 
+let's compare the proportion of spam in the training and test data frames.
+
+
+```{r}
+#install.packages("wordcloud")
+library(wordcloud)
+wordcloud(sms_corpus_clean, min.freq = 50, random.order = FALSE)
+
+```
+
+**Comment:** The wordcloud is a package and a visualization method, to quickly understand what terms or words are used at an higher frequency. Words appearing more often in the text are shown in a larger font, while less common terms are shown in smaller fonts. This will create a word cloud from our prepared SMS corpus. Since we specified random.order = FALSE, the cloud will be arranged in non-random order, with higher-frequency words placed closer to the center. If we do not specify random. order, the cloud will be arranged randomly by default.
+
+
+```{r}
+spam <- subset(sms_raw, type == "spam")
+ham <- subset(sms_raw, type == "ham")
+wordcloud(spam$text, max.words = 40, scale = c(3, 0.5))
+wordcloud(ham$text, max.words = 40, scale = c(3, 0.5))
+#findFreqTerms(sms_dtm_train, 5)
+sms_freq_words <- findFreqTerms(sms_dtm_train, 5)
+str(sms_freq_words)
+sms_dtm_freq_train <- sms_dtm_train[ , sms_freq_words]
+sms_dtm_freq_test <- sms_dtm_test[ , sms_freq_words]
+convert_counts <- function(x) {
+    x <- ifelse(x > 0, "Yes", "No")
+  }
+sms_train <- apply(sms_dtm_freq_train, MARGIN = 2,
+    convert_counts)
+sms_test  <- apply(sms_dtm_freq_test, MARGIN = 2,
+    convert_counts)
+
+
+```
+
+**Comment:** Comparing SMS spam and ham clouds may be more interesting.The wordcloud() function is extremely helpful since we didn't construct separate corpora for spam and ham. Given a vector of raw text strings, it will automatically apply common text preparation processes before displaying the cloud. We can adjust the maximum and minimum values using the scale parameter. In the tm package, the findFreqTerms() function finds frequent words.DTMs are passed to this function, and a vector of characters containing their values is returned. In the above example, the words in sms_dtm_train that appear at least five times are displayed.
+
+
+```{r}
+#install.packages("e1071")
+library(e1071)
+sms_classifier <- naiveBayes(sms_train, sms_train_labels)
+```
+
+**Comment:** In this step, the model is trained on the data with the help of e1081 package, which helps us get the naiveBayes() function to estimate the probability. Unlike the k-NN algorithm we used for classification in the previous chapter, training a Naive Bayes learner and using it for classification occur in separate stages. The above code was used for training the sms with the mentioned sms_classifier. 
+
+
+```{r}
+sms_test_pred
+sms_test_labels
+
+sms_test_pred <- predict(sms_classifier, sms_test)
+library(gmodels)
+CrossTable(sms_test_pred, sms_test_labels,
+    prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+    dnn = c('predicted', 'actual'))
+
+```
+
+**Comment:** For the better evaluation of the sms that are being recieved, the prediction model needs to be built on both unseen messages in the test data and the read messages. The sms_test stores data on the unseen messages and the read ones are in sms_test_labels. The predict() function is used to make prediction based on the classifiers needed. The CrossTable() function which comes in the gmodels package, is used here for the comparison of the predictions. There are total 1390 obersavtions in the table. Looking at the table we can say 9 + 20 = 29 are false positives, i.e., they are incorrectly labeled as spam or ham. Which is less than 2 percent of the data, thus isn't a large amount. There were a total of 161 accurately marked spam messages that are true positives. And there are 1200 ham messages which were accurately labeled. The level of performance of the model is very impressive. There are 20 messages that were, incorrectly marked as spam. 
+
+```{r}
+sms_classifier2 <- naiveBayes(sms_train, sms_train_labels,
+    laplace = 1)
+sms_test_pred2 <- predict(sms_classifier2, sms_test)
+CrossTable(sms_test_pred2, sms_test_labels,
+    prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+    dnn = c('predicted', 'actual'))
+
+```
+
+**Comment:** For the sms_train_labels, which are the read messages, there are total of 27 + 10 = 37 messgaes that were tagged incorrectly (false positive). To improve the model performaces, the lapace estimator was introduced. This allows words that appeared in zero spam or zero ham messages to have an indisputable say in the classification process. Just because the word "ringtone" only appeared in spam messages in the training data, it does not mean that every message with this word should be classified as spam. It seems like there is a small change after the addition of lapalace estimator. Filtering spam requires a balance between being aggressive and passive, so we should be careful before tweaking the model too much more. Rather than an alternative that filters ham messages too aggressively, users would prefer that a small number of spam messages slip through.
+
+
+# Question 2:
+
+```{r}
+#install.packages("klaR")
+library(klaR)
+data(iris)
+
+nrow(iris)
+summary(iris)
+head(iris)
+
+testidx <- which(1:length(iris[, 1]) %% 5 == 0)
+
+# separate into training and testing datasets
+iristrain <- iris[-testidx,]
+iristest <- iris[testidx,]
+
+# apply Naive Bayes
+nbmodel <- NaiveBayes(Species~., data=iristrain)
+
+# check the accuracy
+prediction <- predict(nbmodel, iristest[,-5])
+table(prediction$class, iristest[,5])
+```
+
+**Comment:** As per the question 2, the necessary package "klaR" was installed. This function is used for the classification and visualization, for analysis of naive Bayes statistical theorem. The data(iris) is getting the inbuilt data called iris. It is the data about three types of species: setosa, versicolor and virginica. And information about their speal length, width and petal length. The nrows() gives insights on number of rows, which are 150 in this scenario. The summary() function gives us glimpse of the data, information about min, median, max and various quadriles. The head() gives information about the first 6 rows in the data set. For the model evaluation there is data separation and 5% is going into testing data and remaing is going into test data. I observe that there is no set.seed() used, thus the ramdomization of the data cannot be reproduces. The NaiveBayes() function is used for the probability prediction of the species. The relationships between dependent events can be described using Bayes' theorem, which provides a way of thinking about how to revise an estimate of the probability of one event in light of the evidence provided by another. The iristrain data was used here for the occurance prediction. Later, the accuracy of the model is determined by using predict() function, which is captured by the table() function by determining its count. As per the result shown by the table() function, we can see that there were no false positives for setosa and virginica, however, versicolor had 2 false positives labeled as virginica. 
+

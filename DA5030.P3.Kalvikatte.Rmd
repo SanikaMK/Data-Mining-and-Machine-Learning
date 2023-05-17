@@ -1,0 +1,452 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Problem Set 2: 
+
+# Question 1:
+
+```{r}
+six_class = read.csv("/Users/sanikakalvikatte/Downloads/6 class csv.csv")
+six_class
+colnames(six_class) <- c('Temperature','Luminosity','Radius','Abs_magnitude','Star_type','Star_color','Spectral_class')
+six_class <- six_class[,1:5]
+scale(six_class)
+```
+
+# Question 2: 
+
+```{r}
+k <- 3
+set.seed(12345)
+kmeans_results <- kmeans(six_class, centers = k)
+```
+
+```{r}
+#remove.packages("factoextra")
+#install.packages("factoextra")
+#install.packages("NbClust")
+library(factoextra)
+library(NbClust)
+
+fviz_nbclust(six_class, kmeans, method = "wss") + geom_vline(xintercept = 4, linetype = 2)+ labs(subtitle = "Elbow method")
+
+fviz_nbclust(six_class, kmeans, method = "silhouette")+ labs(subtitle = "Silhouette method")
+```
+
+```{r}
+set.seed(12345)
+fviz_nbclust(six_class, kmeans, nstart = 25, method = "gap_stat", nboot = 50)+
+labs(subtitle = "Gap statistic method")
+```
+
+```{r}
+library("NbClust")
+nb <- NbClust(six_class, distance = "euclidean", min.nc = 3,
+max.nc = 10, method = "kmeans")
+```
+**Comment:**
+Based on the analysis provided, the best number of clusters is 4. This is determined by the majority of indices (13 out of 24) proposing 4 as the best number of clusters. Additionally, the knee point or significant peak in both the Hubert index and D index plots also support the selection of 4 clusters. Therefore, it can be concluded that 4 clusters provide the most optimal and meaningful grouping of the data.
+
+```{r}
+RNGversion("3.5.2")
+six_class_z <- as.data.frame(lapply(six_class, scale))
+set.seed(12345)
+six_clusters <- kmeans(six_class_z, 4)
+six_clusters$size
+six_clusters$centers
+```
+
+# Question 3: 
+
+The quality of clusters produced by an effective clustering approach can be determined by their high similarity within a cluster and low similarity between observations in separate clusters. The choice and application of the similarity measure used by the approach impacts the quality of the clustering result, as well as the method's ability to reveal potential hidden patterns in the data. Clustering algorithms typically use distance metrics or measures to divide observations into different groups, with the Euclidean distance being the most common measure used to indicate the distance between two cluster centers. Differential cluster labeling can be used to assign labels to clusters by comparing term distributions between them, and terms with extremely low frequency are often ignored. The K-means clustering algorithm places observations in the nearest cluster based on the Euclidean distance between the data point and the cluster's centroid, and updates the centroid whenever it adds or loses a data point. The algorithm continues until it can no longer allocate data points to a tighter set. The final groupings should be evaluated to ensure that they meet the objectives, and sometimes analysts may need to specify different group sizes to achieve the best results.
+
+To get the best results using differential cluster labeling, leave out those uncommon phrases and use a differential test. We can label them as:
+Centroid Labels
+Contextualized centroid labels
+Title labels
+External knowledge labels
+Combining Several Cluster Labelers
+
+When using the K means clustering algorithm, each observation is assessed and placed into the nearest cluster based on the Euclidean distance to the group's centroid. The algorithm continuously updates a cluster's centroid as it adds or removes data points, iterating until it can no longer allocate data points to a tighter set. The goal is to have all groups with the lowest within-cluster variation, resulting in sets that are as small and similar as possible. While some variation among traits in each cluster is expected, the algorithm works to minimize it. It is important to evaluate the final groupings to ensure they are appropriate and align with your goals. Analysts may need to specify different group sizes to find the most beneficial results, as some sets may be too big or too small to be useful.
+
+## Problem Set 1: 
+
+# Question 1:
+
+```{r}
+pulsar_data <- read.csv("/Users/sanikakalvikatte/Downloads/archive (3)/pulsar_data_train.csv")
+pulsar_data
+```
+
+# Question 2:
+
+```{r}
+head(pulsar_data)
+tail(pulsar_data)
+str(pulsar_data)
+summary(pulsar_data)
+names(pulsar_data)
+dim(pulsar_data)
+```
+
+```{r}
+any(is.na(pulsar_data$Excess.kurtosis.of.the.integrated.profile))
+any(is.na(pulsar_data$Standard.deviation.of.the.DM.SNR.curve))
+any(is.na(pulsar_data$Skewness.of.the.DM.SNR.curve))
+```
+
+**Comment:**
+There are data abnormalities in the above three fields, thus, looking at the data and to maintain the structure of the data, it is best to impute the data with its mean values. 
+
+```{r}
+pulsar_data
+pulsar_data$Excess.kurtosis.of.the.integrated.profile[is.na(pulsar_data$Excess.kurtosis.of.the.integrated.profile)] <- mean(pulsar_data$Excess.kurtosis.of.the.integrated.profile,na.rm = TRUE)
+
+pulsar_data$Standard.deviation.of.the.DM.SNR.curve[is.na(pulsar_data$Standard.deviation.of.the.DM.SNR.curve)] <- mean(pulsar_data$Standard.deviation.of.the.DM.SNR.curve,na.rm = TRUE)
+
+pulsar_data$Skewness.of.the.DM.SNR.curve[is.na(pulsar_data$Skewness.of.the.DM.SNR.curve)] <- mean(pulsar_data$Skewness.of.the.DM.SNR.curve,na.rm = TRUE)
+pulsar_data
+```
+
+```{r}
+any(is.na(pulsar_data$Excess.kurtosis.of.the.integrated.profile))
+any(is.na(pulsar_data$Standard.deviation.of.the.DM.SNR.curve))
+any(is.na(pulsar_data$Skewness.of.the.DM.SNR.curve))
+```
+
+# Question 3:
+
+```{r}
+n <- nrow(pulsar_data)
+train_idx <- sample(seq_len(n), size = floor(0.7 * n), replace = FALSE)
+train_data <- pulsar_data[train_idx, ]
+val_data <- pulsar_data[-train_idx, ]
+
+# train_data <- train_data[,1:8]
+# val_data <- val_data[,1:8]
+(train_data)
+(val_data)
+```
+
+# Question 4:
+
+```{r}
+# Step 1
+mins <- apply(train_data[, 1:8], 2, min)
+maxs <- apply(train_data[, 1:8], 2, max)
+
+# Step 2
+ranges <- maxs - mins
+train_norm <- sweep(train_data[, 1:8], 2, mins, "-") / ranges
+train_norm <- cbind(train_norm, train_data[, -(1:8)])
+train_norm
+
+# Step 3
+train_norm_scaled <- train_norm[, 1:8] * 2 - 1
+train_norm_scaled <- cbind(train_norm_scaled, train_data[, -(1:8)])
+train_norm_scaled
+names(train_norm_scaled)[9] <- "target_class"
+
+# Step 4
+test_norm <- sweep(val_data[, 1:8], 2, mins, "-") / ranges
+test_norm_scaled <- test_norm[, 1:8] * 2 - 1
+test_norm_scaled <- cbind(test_norm_scaled, val_data[, -(1:8)])
+test_norm_scaled
+names(test_norm_scaled)[9] <- "target_class"
+
+summary(train_norm_scaled)
+
+```
+**Comment:**
+This code is performing data normalization and scaling on a training dataset and a validation dataset.
+
+The purpose of data normalization is to rescale the data so that all features have the same range, usually between 0 and 1. This is done to avoid certain features from dominating over others simply because of their larger values.
+
+The purpose of data scaling is to rescale the normalized data to a new range, often between -1 and 1, to make sure the values are centered around zero. This is done to speed up the training process of some machine learning algorithms that can benefit from having inputs that are centered around zero.
+
+Overall, the purpose of data normalization and scaling is to improve the performance and accuracy of machine learning models by reducing the impact of differences in scales and ranges of input features.
+
+# Question 5:
+
+```{r}
+#install.packages("neuralnet")
+library(neuralnet)
+#train_data
+star_model <- neuralnet(target_class ~ ., data = train_norm_scaled, hidden = 1)
+plot(star_model, rep = "best")
+```
+
+```{r}
+#install.packages("kernlab")
+library(kernlab)
+star_classifier_svm <- ksvm(target_class ~ ., data = train_norm_scaled, kernel = "rbfdot")
+star_classifier_svm
+```
+
+# Question 6:
+
+**SVM model accuracy, precision, recall**
+
+```{r}
+star_test_pred <- predict(star_classifier_svm, test_norm_scaled)
+star_test_pred <- ifelse(star_test_pred >= 0.5, 1, 0)
+summary(star_test_pred)
+
+star_test_label <- val_data$target_class
+#star_test_label
+```
+
+```{r}
+#install.packages("gmodels")
+library(gmodels)
+CrossTable(star_test_pred, star_test_label,prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+    dnn = c('predicted', 'actual'))
+```
+
+The total number of observations in the table is 3759. Looking at the table, it appears that the majority of the observations are correctly classified as 0 (class 0). Out of the 3548 observations predicted as 0, 3387 are actually 0, which gives a true positive rate of 0.901. However, there are some observations that are incorrectly classified as 1 (class 1). Out of the 211 observations that are actually 1, only 188 are correctly classified as 1, which gives a true positive rate of 0.050.
+
+In summary, the model appears to be better at predicting class 0 than class 1, with a higher true positive rate for class 0 and a lower true positive rate for class 1. Further analysis, such as calculating precision, recall, and F1 score, can provide a more complete picture of the model's performance.
+
+```{r}
+# accuracy = (TP + TN)/ (TP + TN+ FP + FN)
+accuracy_svm <- (183 + 3390)/ (183 + 3390 + 148 + 38)
+accuracy_svm
+
+error_rate_svm <- 1 - accuracy_svm
+error_rate_svm
+```
+
+```{r}
+precision_svm <- (183)/(183 + 148)    # (TP) / (TP + FP)
+precision_svm
+
+recall_svm <- (183)/(183 + 38)        # (TP) / (TP + FN)
+recall_svm
+```
+
+**ANN model accuracy, precision, recall**
+
+```{r}
+star_test_pred_ann <- predict(star_model, test_norm_scaled)
+star_test_pred_ann <- ifelse(star_test_pred_ann >= 0.5, 1, 0)
+summary(star_test_pred_ann)
+
+star_test_label_ann <- val_data$target_class
+#star_test_label
+```
+
+```{r}
+#install.packages("gmodels")
+library(gmodels)
+CrossTable(star_test_pred_ann, star_test_label_ann,prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+    dnn = c('predicted', 'actual'))
+```
+
+**Comment:**
+This table shows the results of a binary classification model. The model predicted 0 for 3409 cases and 1 for 349 cases, for a total of 3759 observations.
+
+Of the 3409 cases predicted to be 0, 3316 were actually 0, and 187 were actually 1. This corresponds to a true negative rate of 0.882 and a false positive rate of 0.050.
+
+Of the 349 cases predicted to be 1, 94 were actually 0, and 162 were actually 1. This corresponds to a false negative rate of 0.025 and a true positive rate of 0.043.
+
+Overall, the model correctly classified 3478 out of 3759 observations (92.5% accuracy). However, it had a higher false negative rate than false positive rate, suggesting that it may be better at identifying negatives than positives.
+
+```{r}
+# accuracy = (TP + TN)/ (TP + TN+ FP + FN)
+accuracy_ann <- (162 + 3297)/ (162 + 3297 + 169 + 131)
+accuracy_ann
+
+error_rate_ann <- 1 - accuracy_ann
+error_rate_ann
+```
+
+```{r}
+precision_ann <- (162)/(162 + 169)    # (TP) / (TP + FP)
+precision_ann
+
+recall_ann <- (162)/(162 + 131)        # (TP) / (TP + FN)
+recall_ann
+```
+
+# Question 7: 
+
+```{r}
+library(ipred)
+RNGversion("3.5.2")
+set.seed(12345)
+star_bag <- bagging(target_class ~., data = train_norm_scaled, nbagg = 25)
+star_pred_bag <- predict(star_bag, test_norm_scaled)
+star_pred_bag <- ifelse(star_pred_bag >= 0.5, 1, 0)
+table(star_pred_bag, test_norm_scaled$target_class)
+```
+
+```{r}
+library(caret)
+RNGversion("3.5.2")
+set.seed(12345)
+ctrl <- trainControl(method = "cv", classProbs=TRUE)
+model <-train(target_class ~ ., data = train_norm_scaled, method = "treebag",
+         trControl = ctrl)
+bagging_model <- trainControl(method="bag", number=10, classProbs=TRUE)
+bagging_fit <- train(target_class ~ ., data=train_norm_scaled, method="treebag", trControl=ctrl)
+bagging_pred <- predict(bagging_fit, newdata=test_norm_scaled)
+
+#install.packages("vcd")
+library(vcd)
+library(irr)
+kappa <- kappam.fleiss(table(test_norm_scaled$target_class, bagging_pred))
+kappa
+```
+
+The given analysis presents the Fleiss' Kappa statistic for m raters. In this case, there are 453 raters and 2 subjects. The computed Kappa value is 0.0446, which indicates poor agreement among the raters. The z-score is 29.9, and the p-value is 0, which suggests that the obtained result is highly significant, and the probability of such a result occurring by chance is negligible. Overall, the low Kappa value and the significant p-value indicate that the raters do not agree with each other, and their ratings are inconsistent.
+
+# Question 8:
+
+What are some of the insights that you learned after completing parts 5, 6, and 7? which algorithm would you prefer? which algorithm was faster to train?
+
+I would prefer the SVM model, in this particular data scenario. The model and its accuracy is higher, but it is not faster to train. Additionally, the speed of training for different algorithms can depend on multiple factors such as the size of the dataset, the complexity of the model, and the hardware used to train the model. It depends on the specific implementation and the size of the dataset. In general, SVMs can be slower to train than some other machine learning algorithms, such as logistic regression or decision trees, especially on large datasets. SVMs involve solving a convex optimization problem, which can be computationally expensive for large datasets. However, there are also fast implementations of SVMs, such as the linear SVM, that can be trained efficiently on large datasets. Ultimately, the speed of training will depend on the specific problem, the size of the dataset, and the implementation of the algorithm being used. The training time for a model depends on several factors, including the size of the dataset, the complexity of the model, the hardware used for training, and the optimization algorithm used for training. Generally, simpler models with fewer parameters, such as logistic regression or linear regression, are faster to train than more complex models, such as neural networks or deep learning models. However, this is not always the case, and it can vary depending on the specific problem and dataset. In some cases, advanced hardware and optimization techniques can be used to speed up the training of complex models.
+
+# Question 9:
+
+Regularization refers to any modification made to a learning algorithm that reduces generalization error without decreasing training error. In other words, regularization helps to prevent a model from overfitting to the training data, so that it can perform well on new and unseen data. There are several regularization techniques available, such as L1 and L2 regularization, as well as dropout regularization for neural networks.
+
+In L1 regularization, the model adds the absolute value of the coefficient as a penalty term to the loss function, while L2 regularization adds the square of the coefficient. LASSO and Ridge regression are examples of regression models that use L1 and L2 regularization, respectively.
+
+Support Vector Machines (SVMs) also use regularization through a parameter called lambda, which assigns a certain level of relevance to misclassifications. As lambda increases, the model allows fewer samples to be misclassified and moves closer to a hard-margin solution.
+
+For decision trees and random forests, the model can be regularized by limiting the maximum depth of the trees, imposing stricter criteria for splitting nodes, and adjusting hyperparameters for cross-validation and training.
+
+Dropout is a regularization technique specifically used in neural networks, which randomly drops out hidden and visible units to prevent overfitting.
+
+To determine whether to add more regularization to a model, we can compare the performance of the model on the training set versus the validation set. If the performance on the validation set is significant ly worse than on the training set, adding more regularization could improve generalization. However, if there is little difference between the two performances, adding more regularization may not be necessary. Ultimately, the goal is to have good out-of-sample performance and not a large gap between the training and test sets.
+
+Examples:
+
+SVM with regularization:
+```{r}
+library(e1071)
+svm_model <- svm(target_class ~ ., data = train_norm_scaled, kernel = "linear", cost = 1)
+svm_model
+```
+
+ANN with regularization:
+```{r}
+library(neuralnet)
+
+# Define the regularization parameter
+lambda <- 0.01
+
+# Define the neural network architecture
+star_model <- neuralnet(target_class ~ ., 
+                        data = train_norm_scaled, 
+                        hidden = 1)
+
+# Add L2 regularization to the hidden layer
+star_model$act.f <- c("logistic", "linear")
+star_model$actFunc <- "logistic"
+star_model$linear.output <- FALSE
+star_model$hidden[[1]]$type <- "ActReg"
+star_model$hidden[[1]]$actReg <- "L2"
+star_model$hidden[[1]]$lambda <- lambda
+
+# Train the neural network
+star_model <- neuralnet(target_class ~ ., 
+                        data = train_norm_scaled, 
+                        hidden = 1, 
+                        linear.output = FALSE,
+                        rep = 1,
+                        startweights = NULL)
+
+# Plot the neural network
+plot(star_model, rep = "best")
+
+```
+
+Decision Trees with regularization:
+```{r}
+library(rpart)
+
+# build decision tree without regularization
+tree_unpruned <- rpart(target_class ~ ., data = train_norm_scaled)
+
+# build decision tree with regularization
+tree_pruned <- rpart(target_class ~ ., data = train_norm_scaled, 
+                     cp = 0.01) # set complexity parameter to 0.01 for regularization
+
+# plot the pruned tree
+plot(tree_pruned, uniform = TRUE, main = "Pruned Decision Tree")
+text(tree_pruned, use.n = TRUE, all = TRUE, cex = 0.8)
+```
+
+# Question 10: 
+
+```{r}
+pulsar_data_test <- read.csv("/Users/sanikakalvikatte/Downloads/archive (4)/pulsar_data_test.csv")
+pulsar_data_test
+```
+
+
+```{r}
+pulsar_data_test
+pulsar_data_test$Excess.kurtosis.of.the.integrated.profile[is.na(pulsar_data_test$Excess.kurtosis.of.the.integrated.profile)] <- mean(pulsar_data_test$Excess.kurtosis.of.the.integrated.profile,na.rm = TRUE)
+
+pulsar_data_test$Standard.deviation.of.the.DM.SNR.curve[is.na(pulsar_data_test$Standard.deviation.of.the.DM.SNR.curve)] <- mean(pulsar_data_test$Standard.deviation.of.the.DM.SNR.curve,na.rm = TRUE)
+
+pulsar_data_test$Skewness.of.the.DM.SNR.curve[is.na(pulsar_data_test$Skewness.of.the.DM.SNR.curve)] <- mean(pulsar_data_test$Skewness.of.the.DM.SNR.curve,na.rm = TRUE)
+pulsar_data_test
+```
+
+
+```{r}
+any(is.na(pulsar_data_test$Excess.kurtosis.of.the.integrated.profile))
+any(is.na(pulsar_data_test$Standard.deviation.of.the.DM.SNR.curve))
+any(is.na(pulsar_data_test$Skewness.of.the.DM.SNR.curve))
+```
+
+
+```{r}
+
+pulsar_data_test_norm <- sweep(val_data[, 1:8], 2, mins, "-") / ranges
+pulsar_data_test_norm_scaled <- test_norm[, 1:8] * 2 - 1
+pulsar_data_test_norm_scaled <- cbind(pulsar_data_test_norm_scaled, val_data[, -(1:8)])
+pulsar_data_test_norm_scaled
+names(pulsar_data_test_norm_scaled)[9] <- "target_class"
+
+summary(pulsar_data_test_norm_scaled)
+
+```
+
+
+```{r}
+star_test_pred_new <- predict(star_classifier_svm, pulsar_data_test_norm_scaled)
+star_test_pred_new <- ifelse(star_test_pred_new >= 0.5, 1, 0)
+summary(star_test_pred_new)
+
+star_test_label <- val_data$target_class
+#star_test_label
+```
+
+```{r}
+#install.packages("gmodels")
+library(gmodels)
+CrossTable(star_test_pred_new, star_test_label,prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+    dnn = c('predicted', 'actual'))
+```
+
+There are two classes, 0 and 1. The rows represent the predicted values and the columns represent the actual values.
+
+The table shows that out of 3548 observations that were predicted to be 0, 3387 were actually 0 and 161 were actually 1. This gives a true negative rate of 0.901 and a false positive rate of 0.099.
+
+Out of 211 observations that were predicted to be 1, 188 were actually 1 and 23 were actually 0. This gives a true positive rate of 0.891 and a false negative rate of 0.109.
+
+Overall, the model correctly predicted 3575 out of 3759 observations, which is an accuracy of approximately 0.951. However, it is important to consider other metrics such as precision, recall, and F1-score to get a better understanding of the model's performance.
+
+
+
+
+
+

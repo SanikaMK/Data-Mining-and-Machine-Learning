@@ -1,0 +1,290 @@
+---
+title: "Practice Problem 7"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+concrete <- read.csv("/Users/sanikakalvikatte/Downloads/concrete.csv")
+concrete
+```
+
+**Comment:** We will start with loading the given data set cement in the R Studio and observe the various fields present in the data set. For an insight, I can observe that the strength of the cement is depended on it's slag, cement to water consistency, the age of the constructed cement, etc. 
+
+```{r}
+str(concrete)
+```
+
+**Comment:** The structure of the concrete data frame has 1030 observation of 9 variables. All the field are numeric, except age is integer. We have good numerical values for evaluation in this data set.
+
+```{r}
+normalize <- function(x){
+  return((x - min(x))/ (max(x) - min(x)))
+}
+
+concrete_norm <- as.data.frame(lapply(concrete, normalize))
+summary(concrete_norm$strength)   #Normalized data
+summary(concrete$strength)        #Original non- normalized data
+```
+
+<font size="5.6"> Normalizing or Standardize the Data</font> <br>
+For Neural Networks, the data needs to be scaled to a narrow range which is closer to zero. As we see, in our construct data frame not all the values are closer to zero. Thus, normalization of the data set is required for us to use artificial neural network for predicting the strength of the cement. Normalization was used here since the data is in the heavy range or also called as severely non-normal, thus in such a case normalization is recommended. To confirm that the data is properly normalized, summary of the latest data set is being used.
+
+
+```{r}
+concrete_train <- concrete_norm[1:773,]
+concrete_test <- concrete_norm[774:1030,]
+```
+
+<font size="5.6"> Parting the Data</font> <br>
+As seen the structure of the concrete data, we see that there were total of 1030 observations across 9 features. Thus, the division of the data is done by splitting 75% of the data in testing and 25% of the data in training. This model will be further used for the neural network analysis. Briefly, the training data set will be use to build the neural network and the testing data set will be used for evaluation of the built model, and estimate its quality of future predictions. 
+
+
+```{r}
+#install.packages("neuralnet")
+library(neuralnet)
+concrete_model <- neuralnet(strength ~ cement + slag + ash + water + superplastic + coarseagg + fineagg + age, data = concrete_train)
+plot(concrete_model, rep = "best")
+```
+
+<font size="5.6"> Training the Model on the Data</font> <br>
+To calculate how the cements' strength is dependent upon all the other given parameters, neural network is the best fit for the solution. The package is neural network, which is required here for the evaluation, is not a pre-loaded package. The plot() function is used for presenting the obtained neural network. Currently there is one hidden layers in the neural network, all the weights are calculated to provide a relation from each parameter of the concrete to the strength. This is the basic essence of a simple multi-layer feed forward network. A Neural Network has a input node, a hidden node, and a output node. These hidden nodes can be controlled by the hidden parameter inside the neuralnetwork() function. There is a non-linearity coefficient that is added to the calculated parameter, in this case it would be strength of the concrete. 
+
+
+```{r}
+set.seed(12345)
+model_results <- compute(concrete_model, concrete_test[1:8])
+predicted_strength <- model_results$net.result
+cor(predicted_strength, concrete_test$strength)
+```
+
+<font size="5.6"> Evaluating Model Performance</font> <br>
+The seed is set to 12345, throughout this document for a synchronized randomization. As mentioned earlier, in neural network the training data is used for building the model and the test data is used for understanding and evaluating the models future prediction capabilities. The compute() function is used for generating predictions on the test data set. The compute() function is similar to predict(), however, the output of the compute() has two fields: $neurons, and $net.result. Here the $net.result is used to check the stored predicted value. The predicted_strength calculates the strength between predicted concrete strength and the true value. The cor() function is used to evaluate the correlation between them. The correlation is about 72% which is a good percent correlation, considering only one hidden node was used, to narrow our evaluations down more hidden nodes can be added.
+
+
+```{r}
+concrete_model2 <- neuralnet(strength ~ cement + slag + ash + water + superplastic + coarseagg + fineagg + age, data = concrete_train, hidden = 5)
+plot(concrete_model2, rep = "best")
+```
+
+<font size="5.6"> Improving Model Performance</font> <br>
+
+Increasing the number of hidden nodes to five gives us a stronger correlation of about 78%.
+
+```{r}
+set.seed(12345)
+model_results2 <- compute(concrete_model2, concrete_test[1:8])
+predicted_strength2 <- model_results2$net.result
+cor(predicted_strength2, concrete_test$strength)
+```
+
+```{r}
+softplus <- function(x) { log(1 + exp(x)) }
+```
+
+Smoothening of the curve is performed by softplus(). In the below code, the act.fct is mentioned to add the non linearity back in the picture. The hidden layer is provided in a vector form c(5,5), to obtain more improvement in the model performancy accuracy. 
+
+```{r}
+set.seed(12345)
+concrete_model3 <- neuralnet(strength ~ cement + slag + ash + water + superplastic + coarseagg + fineagg + age, data = concrete_train, linear.output = FALSE, hidden = c(5,5), act.fct = softplus)
+plot(concrete_model3, rep = "best")
+```
+
+```{r}
+set.seed(12345)
+model_results3 <- compute(concrete_model3, concrete_test[1:8])
+predicted_strength3 <- model_results3$net.result
+cor(predicted_strength3, concrete_test$strength)
+```
+
+After addition the node, the correalation accuracy is dropped down to about 61%.
+
+```{r}
+strengths <- data.frame(
+  actual = concrete$strength[774:1030],
+  pred = predicted_strength3
+)
+head(strengths, n = 3)
+```
+
+```{r}
+cor(strengths$pred, strengths$actual)
+```
+
+```{r}
+unnormalize <- function(x) {
+    return((x * (max(concrete$strength)) -
+            min(concrete$strength)) + min(concrete$strength))
+  }
+
+```
+
+<font size="5.6"> Unnormalization of the Normalized Data</font> <br>
+The unnormalization the concrete dataset is necessary as we normalized the data at the start, this will reverse the min-max normalization that has been performed on the data. Thus we can check if the new predictions are on a similar scale to the original concrete strength values. 
+
+
+```{r}
+strengths$pred_new <- unnormalize(strengths$pred)
+strengths$error <- strengths$pred_new - strengths$actual
+head(strengths, n = 3)
+```
+
+As the predictions are on a similar scale for new and old concrete values a mean squared error is taken to understand the difference. Additionally, the correlation between the unnormalized and original strength values remains the same. 
+
+```{r}
+cor(strengths$pred_new, strengths$actual)
+```
+
+# Question 2:
+
+```{r}
+letters <- read.csv("/Users/sanikakalvikatte/Downloads/letterdata.csv")
+letters
+```
+
+```{r}
+str(letters)
+```
+
+<font size="5.6"> Analyzing the Data</font> <br>
+After loading the data in the letters data frame, it can be inferred that there are total of 17 features with 2000 observations, on a letter's height, width, pixel, etc. There are total 26 levels in the English alphabets. The letters themselves are characters and the rest data is stored in integers. 
+
+
+<font size="5.6"> About Support Vector Models $ Training the Data</font> <br>
+Support Vector Models (SVM) are used as differential vector between two clusters to identify the clusters from each other. SVM learners need all of the features to be numeric, and each feature is scaled to a fairly small interval. For the following letters data set, a R package will be used for fitting, thus SVM learners will scale automatically, because of that package. 
+
+```{r}
+letters_train <- letters[1:16000,]
+letters_test <- letters[16001:20000,]
+library(e1071)
+#install.packages("kernlab")
+library(kernlab)
+letter_classifier <- ksvm(as.factor(letter) ~., data = letters_train , kernel = "vanilladot")
+letter_classifier
+```
+
+<font size="5.6"> Evaluating Model Performance</font> <br>
+Creating classifiers, initially by splitting the data in training and testing. There are various classifier packages that can be used. In this scenario kernlab is used. The pros about kernlab are, it has many built-in SVM functions, and it can be used with caret package for better SVM learners training. The kernal vanilladot is used for linear mapping. 
+
+```{r}
+letter_predictions <- predict(letter_classifier, letters_test)
+head(letter_predictions)
+table(letter_predictions, letters_test$letter)
+#letter_predictions
+```
+
+After creation of the classifiers, the predict function is used for letter predictions. This returns a vector containing a predicted letter for each row of values in the testing data. Using the head() function, we can see that the first six predicted letters were U, N, V, X, N, and H.
+  The diagonal values represents the frequency of the letter that was predicted and it matches the true value.
+
+```{r}
+agreement <- letter_predictions == letters_test$letter
+table(agreement)
+prop.table(table(agreement))
+```
+The following command returns a vector of TRUE or FALSE values indicating whether the model's predicted letter agrees with (that is, matches) the actual letter in the test dataset. Using the table() function, we see that the classifier correctly identified the letter in 3,357 out of the 4,000 test records. In percentage terms, the accuracy is about 84 percent.
+
+<font size="5.6"> Improving Model Performance</font> <br>
+
+The Gaussian RBF (Radial Basis Function) kernel is a popular kernel function used in machine learning algorithms, particularly in kernel-based methods such as Support Vector Machines (SVMs) and Gaussian Processes (GPs).
+
+```{r}
+set.seed(12345)
+letter_classifier_rbf <- ksvm(as.factor(letter) ~. , data = letters_train, kernel = "rbfdot")
+#letter_classifier_rbf
+letter_predictions_rbf <- predict(letter_classifier_rbf, letters_test)
+agreement_rbf <- letter_predictions_rbf == letters_test$letter
+table(agreement_rbf)
+#prop.table(agreement_rbf) #Hidden becasue the output is very lengthy. 
+```
+
+The code trains a SVM classifier using the Gaussian RBF kernel (kernel = "rbfdot") to predict the letter class variable in the letters_train dataset. The formula as.factor(letter) ~. specifies that the letter class variable is the target variable to be predicted and . refers to all other variables in the dataset as features. Moreover the code uses the trained SVM classifier (letter_classifier_rbf) to make predictions on the letters_test dataset. The predicted letter class values are stored in the letter_predictions_rbf object. The table(agreement_rbf): This line of code creates a contingency table of the agreement_rbf object, which shows the number of correct and incorrect predictions.The prop.table(agreement_rbf): This line of code calculates the proportion of correct predictions by dividing the number of correct predictions by the total number of predictions. The result is a table of proportions.
+
+```{r}
+cost_values <- c(1, seq(from = 5, to = 40, by = 5))
+ accuracy_values <- sapply(cost_values, function(x) {
+    set.seed(12345)
+    m <- ksvm(as.factor(letter) ~ ., data = letters_train,
+              kernel = "rbfdot", C = x)
+    pred <- predict(m, letters_test)
+    agree <- ifelse(pred == letters_test$letter, 1, 0)
+    accuracy <- sum(agree) / nrow(letters_test)
+    return (accuracy)
+  })
+
+```
+
+
+```{r}
+plot(cost_values, accuracy_values, type = "b")
+```
+
+It can be inferred from the plot that the accuracy of this model increases as the cost value increases.
+
+# Question 3:
+
+```{r}
+#install.packages("arules")
+library(arules)
+groceries <- read.transactions("/Users/sanikakalvikatte/Downloads/groceries.csv", sep = ",")
+summary(groceries)
+```
+
+A summary of the sparse matrix we created can be found in the first block of information in the output (as shown previously). The output 9835 rows refers to the number of transactions, and 169 columns indicates each of the 169 different items that might appear in someone's grocery basket. It shows a set of statistics about the size of the transactions.
+
+```{r}
+itemFrequency(groceries[,1:3])
+itemFrequencyPlot(groceries, support = 0.1)
+```
+As shown in the following plot, this results in a histogram showing the eight items in the groceries data with at least 10 percent support.
+
+Data analysis is made easier with the arules package's useful features. Using R's vector operators, inspect() can be used to look at the sparse matrix's contents. We can find out how many transactions contain the specified item by using the itemFrequency() function. There is an alphabetical ordering of the items in the sparse matrix. Around 0.3 percent of transactions involved abrasive cleaners and artificial sweeteners, while 0.06 percent involved baby cosmetics.
+
+```{r}
+itemFrequencyPlot(groceries, topN = 20)
+```
+
+The histogram is then sorted by decreasing support, as shown in the following diagram for the top 20 items in the groceries data.
+
+```{r}
+image(groceries[1:5])
+```
+
+Based on the five transactions and 169 possible items we requested, we generated a matrix consisting of five rows and 169 columns. Cells in the matrix are filled with black for transactions (rows) where the item (column) was purchased. Still, by combining it with the sample() function, you can view the sparse matrix for a randomly sampled set of transactions. The command to create a random selection of 100 transactions is as follows:
+
+```{r}
+image(sample(groceries, 100))
+```
+
+```{r}
+apriori(groceries)
+```
+
+For exploring and preparing the groceries data, we'll use the arules package, which implements the Apriori algorithm.Unless you have already installed and loaded this package, you will need to do so. On the groceries data, using the default settings of support = 0.1 and confidence = 0.8 results in a set of zero rules.
+
+```{r}
+groceryrules <- apriori(groceries, parameter = list(support = 0.006, confidence = 0.25, minlen = 2))
+groceryrules
+```
+
+The groceryrules object contains a set of 463 association rules. To determine whether any of them are useful, there is an advanced analysis required. 
+
+```{r}
+summary(groceryrules)
+```
+
+There are 50 rules have only two items, while 297 have three, and 16 have four. 
+
+```{r}
+inspect(groceryrules[1:3])
+inspect(sort(groceryrules, by = "lift")[1:5])
+```
+
+```{r}
+berryrules <- subset(groceryrules, items %in% "berries")
+inspect(berryrules)
+```
+
+With a support of about 0.011 and confidence of 0.270, we can determine that this rule covers about 0.7 percent of transactions and is correct in around 30 percent of purchases involving potted plants. 
+
+
